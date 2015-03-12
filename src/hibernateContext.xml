@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx" 
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	 http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+	 http://www.springframework.org/schema/context 
+	 http://www.springframework.org/schema/context/spring-context-2.5.xsd 
+	 http://www.springframework.org/schema/aop 
+	 http://www.springframework.org/schema/aop/spring-aop-2.5.xsd 
+	 http://www.springframework.org/schema/tx  
+	 http://www.springframework.org/schema/tx/spring-tx-2.5.xsd">
+
+	<!--定义dataSource的数据源参数 -->
+	<bean id="comboPooledDataSourceParams" class="com.study.utility.ComboPooledDataSourceParams"></bean>
+	
+	<!--定义dataSource -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" destroy-method="close">
+        <property name="driverClass">
+        	<value>${jdbc.driverClassName}</value>
+        </property>
+        <property name="jdbcUrl">
+        	<value>jdbc:mysql://127.0.0.1:3306/study?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull</value>
+        </property>
+        <property name="user">
+        	<value>${jdbc.username}</value>
+        </property>
+        <property name="password">
+        	<value>${jdbc.password}</value>
+        </property>
+        <property name="minPoolSize">
+            <value>10</value>
+        </property>
+        <property name="maxPoolSize">
+            <value>20</value>
+        </property>
+        <property name="initialPoolSize">
+            <value>10</value>
+        </property>
+    </bean>
+  
+    <!--定义Hibernate的SessionFactory -->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+        <property name="dataSource">
+            <ref local="dataSource"/>
+        </property>
+		<property name="packagesToScan">
+			<list>
+				<value>com.study.model</value>
+				<value>com.study.model.extend</value>
+			</list>
+		</property>
+        <property name="hibernateProperties">
+            <props>
+                <prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+                <prop key="show_sql">false</prop>
+                <prop key="hibernate.hbm2ddl.auto">none</prop>
+                <prop key="hibernate.jdbc.fetch_size">50</prop>
+                <prop key="hibernate.jdbc.batch_size">30</prop> 
+                <prop key="hibernate.statement_cache.size">25</prop>
+                <prop key="hibernate.connection.autocommit">true</prop> 
+            </props>
+        </property>        
+    </bean>
+    
+    <bean id="hibernateTemplate" class="org.springframework.orm.hibernate3.HibernateTemplate" >
+		<property name="sessionFactory"><ref bean="sessionFactory" /></property>
+	</bean>
+
+</beans>

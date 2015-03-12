@@ -1,0 +1,5 @@
+.在QuestionCategory的Model中有一个LevelName，它会自动按N层在名称前添加2N个汉字
+.显示QuestionCategory时，是按sortFlag倒序
+.我已经做了上传文章图片的测试:webroot/testBySzh/testUploadFile.jsp，已实现后台导入图片到开放存储空间，它会返回图片链接（在标准数据包中）
+.我已经做了导入文章数据包的测试:webroot/testBySzh/testUploadFile.jsp，已实现后台导入文章
+.顶级分类节点的parant_id为0

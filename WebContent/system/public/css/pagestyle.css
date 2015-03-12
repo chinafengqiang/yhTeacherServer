@@ -1,0 +1,182 @@
+@charset "utf-8";
+body{ background:#010101; font-size:12px; font-family:"宋体";text-align:center;}
+.box{ width:1186px; background:#fafaf2; height:auto; margin:auto;}
+.left_banner{ width:178px; background:url(../image/leftBannerBg-178x6.jpg) repeat-y; height:1570px; padding-top:30px;}
+
+.logo{ width:146px; height:66px;}
+.logo img{ margin-left:10px;}
+.version{color:#CCCCCC; margin-top: 30px; text-align:center;}
+.bottom_fix{ position:absolute; left:10px; bottom:60px;}/*页面左下角部分*/
+.bottom_fix p{ line-height:30px; color:#c7d3c9; font-size:14px;}
+.right_content{ background:#fafaf2; border-top:1px solid #020100; width:1008px;}
+.explain{ margin-top:23px; margin-left:20px; font-size:14px; color:#686860;text-align:left;}
+.explain span {
+font-size: 34px;
+color: #030400;
+letter-spacing: 8px;
+font-family: "黑体";
+margin-right: 5px;
+}
+/*登录页*/
+.login_box{ margin-top:210px; margin-left:358px; }
+.login_box table th{ font-size:12px; color:#000; font-weight:100; line-height:50px;}
+.login_box .confirmCode {height:26px; line-height:26px;}
+.login_btn{ margin-left:20px; margin-top:40px;}
+.login_btnClose{ margin-left:70px; margin-top:40px;}
+.option_btn{ width:66px; height:25px; background:#4e831b; color:#edf5ff; line-height:25px; cursor:pointer;}
+/*左侧导航*/
+.menu_list{ margin-top:68px; margin-left:16px;}
+.menu_list li{text-align:left; width:141px; height:34px; margin-bottom:26px; background:url(../image/menuListBg.jpg) no-repeat;}
+.menu{ display:block; width:100px; height:22px; margin-left:36px; color:#f4fbff; font-size:20px; font-family:"黑体"; line-height:22px;}
+.menu:hover{ color:#00f435;}
+
+.content_box{ width:95%; margin:auto;}
+.content_top{ font-size:12px; color:#949492; margin-top:12px; line-height:14px;}
+.grey_underline{ color:#949492; text-decoration:underline;}
+.content_top p{ margin-right:10px;}
+.city{ margin-left:6px; margin-right:6px; color:#010100; font-weight:bold;}/*进入城市*/
+
+.content_title img{ margin-left:30px;}
+.content_title p{ margin-top:36px; color:#a4a49c;}
+/*右侧表格统一样式*/
+.right_table{ width:100%; text-align:center;}
+.right_table th{ font-size:12px; color:#f2fdff; line-height:30px; height:30px; background:#4e821e; font-weight:100;}
+.right_table tbody{ font-size:12px; line-height:30px; height:30px;}
+.right_table .fillet{ background:url(../image/fillet.jpg) top right no-repeat #4e821e;}
+.right_table td{ line-height:42px; height:42px; border-bottom:1px solid #ccccc4; color:#030300;}
+/*table翻页*/
+.page{ margin-top:24px;}
+.page_btn{ background:#f9fcf1; color:#9b9e97; width:73px; height:24px; line-height:22px; border:1px solid #e4e5df; text-align:center; cursor:pointer;}
+.page span{ color:#a7a6a1;}
+/*公告部分*/
+.announce{overflow-y:auto; overflow-x:auto; height:1050px; width:903px; min-height:1050px; max-height:1050px; border:1px solid #cecdc8; margin-top:70px; margin-left:20px; background:#ffffff;}
+.announce_title{ font-size:28px; font-family:"黑体";; color:#c60307; line-height:100px; text-align:center; margin-top:10px;}
+.article_meta{ font-size:14px; color:#000; text-align:right;}
+.article_meta .grey{ color:#8f8f8f;}
+.title_h3{ font-size:14px; font-weight:bold; text-align:left; margin-top:75px; margin-bottom:45px;}
+.announce p{ text-indent:2em; color:#676767; font-size:14px; line-height:24px;}
+.article_end{ margin-top:20px;}
+.article_end p{ text-align:right; font-size:14px; line-height:22px; color:#323232;}
+.option_btn_g{width:66px; height:25px; background:#4a8227; color:#edf5ff; line-height:25px; cursor:pointer;}
+.option_btn_g_long{width:126px; height:25px; background:#4a8227; color:#edf5ff; line-height:25px; cursor:pointer;}
+/*单位列表编辑*/
+.unit_edit{ margin-top:45px;}
+.unit_edit table th{color:#a5a49f; width:100px; text-align:right; line-height:34px; font-weight:100;font-size:12px;}
+.unit_edit table td{text-align:left; width:350px;};
+.unit_edit table .red{ color:#ed0916;}
+.unit_edit table select{border: 1px solid #cecfca;padding-left: 5px;}
+.choice_table{ float:right; width:740px;}
+.choice_table_t{ width:720px; margin-left:10px}
+/*课程*/
+.course_dif{ float:left; width:195px;}
+.course_sort{font-size: 12px;color: #f2fdff;line-height: 30px;height: 30px;background: #4e821e;font-weight: 100; text-align:left; padding-left:10px;}
+.course_sort a{font-size: 12px;color: #f2fdff; text-decoration:underline;}
+.course_dif dl{ margin-top:15px; font-size:12px; color:#030300; text-align:left;}
+.course_dif dl dt{ font-weight:bold; margin-bottom:8px;}
+.course_dif dl dd{ line-height:24px; padding-left:5px; cursor:pointer;}
+.course_dif dl dd:hover{ background:#f9e8ce;}
+.ddchoised{background:#f9e8ce; font-weight:bold;}
+.right_table .red{ color:#ed0916;}
+.score_title{ text-align:center; font-size:28px; font-weight:100; line-height:56px; margin-top:20px;}
+.score_meta{ color:#ed0916;}
+#ourC{border: 1px solid #cecfca; width:15px; height:15px;}
+/*重置密码*/
+.repsw_box{ margin-top:150px; margin-left:358px;}
+.repsw_box table th{ font-size:14px; color:#000; font-weight:100; line-height:45px; text-align:right; padding-right:10px;}
+.repsw_btn1 {margin-left: 110px;margin-top: 40px;}
+.repsw_btn2 {margin-left: 45px;margin-top: 40px;}
+.view_img{ margin-top:44px; margin-bottom:34px;}
+.pos_abs{ position:absolute; right:-123px; top:-17px;}
+.checkbox_area{ width:709px; line-height:40px; border:1px solid #c8cdc7; background:#ebfff4; padding-left:34px;}
+.checkbox_area span{ color:#5d6860; font-size:12px;}
+.checkbox_s{ width:15px; height:15px; border:1px solid #c8cfc8; background:#ffffff;}
+.checkbox_d p{ margin-left:55px; width:100px; line-height:26px;}
+.content_box .ts_mart50{ margin-top:50px;}
+.check_choose{ width:45%; margin:35px auto 0;}
+.check_choose p{ margin-top:10px;}
+.check_choose_judge { width:770px; text-align:center }
+.check_choose_judge p{ margin-top:30px;}
+
+.option_btn2{ width:66px; height:25px; background:#c8c8c8; color:#edf5ff; line-height:25px; cursor:pointer;}/*灰色按钮*/
+.checkbox_area2{ width:709px; line-height:40px; border:1px solid #c8cdc7; background:#fffedf; padding-left:34px;}
+.unit_edit .font14{ font-size:14px;}
+.unit_edit .grey{ color:#989792;}
+.line_se span{ line-height:38px;}
+/*试卷页弹出层*/
+.open_layer{ width:282px; height:308px; background:#f1f0f6; border:1px solid #cecdc8; position:absolute; left:168px; top:45px;}
+.close_s{ background:url(../image/close_q.jpg) no-repeat; width:27px; height:22px; display:block; float:right; text-indent:-999px; overflow:hidden; margin-top:5px; margin-bottom:5px;}
+.open_table{ margin-left:30px;}
+.open_table th{ font-weight:100; color:#040308; font-size:12px; line-height:40px; width:50px;}
+.option_btn_g2 {width: 66px;height: 25px;background: #9967fe;color: #edf5ff;
+line-height: 25px;cursor: pointer;}
+.turn_t_f{ font-size:18px;; font-weight:bold; color:#696969; display:inline-block; width:125px; text-align:center;}
+.turn_left{ background:url(../image/turn-left.jpg) no-repeat; width:30px; height:26px; text-indent:-999px; overflow:hidden; display:inline-block; vertical-align:middle;}
+.turn_right{ background:url(../image/turn-right.jpg) no-repeat; width:30px; height:26px; text-indent:-999px; overflow:hidden; display:inline-block; vertical-align:middle;}
+.turn_title{ margin-top:20px; height:28px; line-height:28px; color:#696969; position:relative; z-index:3;}
+.turn_list{ width:195px; float:left;}
+.turn_list li{ line-height:30px; font-size:14px; color:#363530;}
+.turn_list .turn_totle{ line-height:70px; color:#696969; font-weight:bold; font-size:12px;}
+.turn_totle span{ font-size:18px; font-family:"黑体";}
+.turn_control{ display:inline-block; margin-bottom:40px; margin-left:15px;}
+.view_part{ width:195px; height:277px; overflow:hidden; position:absolute; top:48px; left:0;}
+.all_part{ width:980px; height:277px; position:absolute; left:0; top:0;}
+
+.examjk_title{ float:left; margin-top:10px; font-size:14px; font-weight:100;}
+.checkbox_area3 {
+width: 709px;
+line-height: 40px;
+border: 1px solid #c8cdc7;
+background: #d1defe;
+padding-left: 34px;
+}
+.mar-ie7{*margin-top:-50px;}/*课程页兼容ie6,7*/
+
+
+.layoutLoading {
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 45%;
+            width: 20%;
+            height: 20%;
+            z-index: 1001;
+            text-align:center;
+}
+
+.uploadImagePopup {
+	display:none; 
+	width:340px; 
+	height:580px;
+	border-style: solid; 
+	border-color: green;
+	border-width: 1px;
+	background-color: white; 
+	padding: 10px;
+}
+.uploadImagePopup .picture {
+	max-width: 340px;
+	mar-height: 100px; 
+}
+.uploadImagePopup .url {
+	font-size: 14px;
+	margin-top: 20px;
+}
+.uploadImagePopup .note {
+	margin-top: 30px;
+	margin-bottom: 20px;
+	font-size: 12px;
+	color:gray;
+}
+.buttonDisabled {
+	color:#999999;
+}
+.text-overflow { 
+	display:block;/*内联对象需加*/ 
+	word-break:keep-all;/* 不换行 */ 
+	white-space:nowrap;/* 不换行 */ 
+	overflow:hidden;/* 内容超出宽度时隐藏超出部分的内容 */ 
+	text-overflow:ellipsis;/* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/ 
+}
+.inputReadOnly { 
+	background: #EFEFEF; 
+}

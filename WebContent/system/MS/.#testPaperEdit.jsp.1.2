@@ -1,0 +1,37 @@
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+
+<!-- 数据编辑区域  -->          
+<div class="unit_edit" style="clear:both;">
+	<input type="hidden" name="dataId" id="dataId"/>
+	<table>
+      	<tbody><tr><th>试卷名称：</th><td colspan="3"><input class="input_text input700x22" type="text" id="edName" name="edName"></td></tr>
+          <tr><th valign="top">试卷说明：</th><td colspan="3"><input class="input_text input700x22 marb50 mart5" type="text" id="edDescription" name="edDescription"></td></tr>
+          <tr><th valign="top">试卷分类：</th><td><input class="input_text input294x22 mart5" type="text" id="edCategory" name="edCategory"></td>
+          <th valign="top">试卷总分：</th><td><input class="input_text input294x22 mart5" type="text" value="100" id="edTotalScore" name="edTotalScore"/></td></tr>
+          <tr><th valign="top">出题套数：</th><td><input class="input_text input294x22 mart5" type="text" id="edTotalSeries" name="edTotalSeries"/></td>
+          <th valign="top">通过分数：</th><td><input class="input_text input294x22 mart5" type="text" value="60" id="edPassScore" name="edPassScore" /></td></tr>
+          
+          <tr><th>最高学分：</th><td><input class="input_text input294x22" id="edCredit" name="edCredit" ></td>
+          <th>状态：</th><td><select class="input_text input294x22" name="edStatus"  id="edStatus"></select></td></tr>
+          
+           <tr><th>题目排序：</th><td><select class="input_text input294x22" name="edQuestionSortType"  id="edQuestionSortType"></select></td>
+           <th>选项排序：</th><td><select class="input_text input294x22" name="edQuestionOptionsSortType"  id="edQuestionOptionsSortType"></select></td></tr>
+           <tr><th>题目设置：</th><td colspan="3"><div class="checkbox_area2 marb20">
+           <input class="checkbox_s marl55" type="checkbox" id="edCanIgnoreScore" name="edCanIgnoreScore" /><span class="marl10 grey_dark">忽略试题原分数，按试卷题型设置分数</span>
+           </div></td></tr>
+           <tr><th>题型设置：</th><td colspan="3"><div class="checkbox_area line_se">
+           <p class="mart5">
+           <span class="font14 grey_dark" id="btnJudgeSelect">判断题：</span><span class="marl10 grey">每题分数：</span><input class="input_text input30x22" type="text" id="edJudgeScore"/><span class="marl20 grey">题目数量：</span><input class="input_text input30x22" type="text" id="edJudgeNum" /><span class="marl20 grey">出题顺序：</span><input class="input_text input30x22" type="text" id="edJudgeSortFlag" /><span class="marl20 grey">说明：</span><input class="input_text input183x22" id="edJudgeNote" type="text" /></p>
+           <p><span class="font14 grey_dark" id="btnSingleSelect">单选题：</span><span class="marl10 grey">每题分数：</span><input class="input_text input30x22" type="text" id="edSingleScore" /><span class="marl20 grey">题目数量：</span><input class="input_text input30x22" type="text" id="edSingleNum"  /><span class="marl20 grey">出题顺序：</span><input class="input_text input30x22" type="text" id="edSingleSortFlag"/><span class="marl20 grey">说明：</span><input class="input_text input183x22" id="edSingleNote" type="text" /></p>
+           <p class="marb10"><span class="font14 grey_dark" id="btnMultipleSelect">多选题：</span><span class="marl10 grey">每题分数：</span><input class="input_text input30x22" id="edMultipleScore" type="text" /><span class="marl20 grey">题目数量：</span><input class="input_text input30x22" id="edMultipleNum" type="text" /><span class="marl20 grey">出题顺序：</span><input class="input_text input30x22"  id="edMultipleSortFlag" type="text" /><span class="marl20 grey">说明：</span><input class="input_text input183x22" id="edMultipleNote" type="text" /></p>
+           </div></td></tr>
+          </tbody>
+      </table>
+    <!-- 按钮区域  -->
+    <div class="txtc">
+    	<input id="btnSave" class="option_btn mart24 marr45" type="button" value="保&nbsp;&nbsp;&nbsp;存">
+    	<input id="btnClose" class="option_btn mart24 marr45" type="button" value="关&nbsp;&nbsp;&nbsp;闭">
+    </div>
+</div>
+
+ 

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx" 
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	 http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+	 http://www.springframework.org/schema/context 
+	 http://www.springframework.org/schema/context/spring-context-2.5.xsd 
+	 http://www.springframework.org/schema/aop 
+	 http://www.springframework.org/schema/aop/spring-aop-2.5.xsd 
+	 http://www.springframework.org/schema/tx  
+	 http://www.springframework.org/schema/tx/spring-tx-2.5.xsd">
+	
+	<!-- 加载应用配置文件 -->
+	<context:property-placeholder location="classpath:application.properties" />
+	 
+	<!-- 对标注@Transaction注解的Bean进行事务管理 -->  
+	<tx:annotation-driven transaction-manager="transactionManager"/>
+	
+	<!-- 自动搜索全包 -->  
+	<context:component-scan base-package="*"/>	
+	 
+	<!-- 配置 XMemcachedClient --> 
+	<bean name="memcachedClientBuilder" class="net.rubyeye.xmemcached.XMemcachedClientBuilder">
+         <constructor-arg>
+             <list>
+	             <bean class="java.net.InetSocketAddress">
+	                 <constructor-arg><value>${memcached.server.ip}</value></constructor-arg>
+	                 <constructor-arg><value>${memcached.server.port}</value></constructor-arg>
+	             </bean>
+             </list>
+        </constructor-arg>
+        <constructor-arg>
+             <list>
+               <value>1</value>
+             </list>
+        </constructor-arg>
+        <property name="connectionPoolSize" value="5"></property>
+        <property name="commandFactory">
+        	<bean class="net.rubyeye.xmemcached.command.TextCommandFactory"></bean>
+        </property>
+        <property name="sessionLocator">
+            <bean class="net.rubyeye.xmemcached.impl.KetamaMemcachedSessionLocator"></bean>
+        </property>
+        <property name="transcoder">
+            <bean class="net.rubyeye.xmemcached.transcoders.SerializingTranscoder" />
+        </property>
+	</bean>
+  <!--  <bean name="memcachedClient" factory-bean="memcachedClientBuilder" factory-method="build" destroy-method="shutdown"/> --> 
+
+	<!-- Hiberante配置--> 
+ 	<import resource='hibernateContext.xml' />	
+ 	
+ 	<!-- 初始化系统 -->
+ 	<bean id="systemInitialization" lazy-init="false" class="com.study.service.impl.SystemInitialization" init-method="init" />
+ 	
+	<!-- 事务管理器 --> 
+    <bean id="transactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager"> 
+        <property name="sessionFactory"> 
+            <ref bean="sessionFactory"/> 
+        </property> 
+    </bean> 
+	  
+	<!-- 定义任务调度服务业务类 -->  
+    <bean id="schedulerService" class="com.study.service.impl.SchedulerServiceImpl"></bean>
+   
+    <!-- 定义任务调度服务：自动校验单位服务期限 -->
+	<bean id="schedulerJobAutoValidateOrganServiceLimit" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref  bean="schedulerService"/>	
+		</property>
+		<property name="targetMethod">
+			<value>autoValidateOrganServiceLimit</value>
+		</property>
+		<property name="concurrent" value="false"/>
+	</bean>
+
+	<!-- 定义任务调度服务运行时间：自动校验单位服务期限 -->
+	<bean id="schedulerRunTimeAutoValidateOrganServiceLimit" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail">
+			<ref bean="schedulerJobAutoValidateOrganServiceLimit"/>
+	 	</property>
+	 	<property name="cronExpression">
+	 		<!-- 每天凌晨1:00分开始 -->
+	 		<value>0 0 1 * * ?</value>
+		</property>
+	</bean>
+	
+    <!-- 定义任务调度服务：自动统计考试报表 -->
+	<bean id="schedulerJobAutoStatReportExam" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<ref  bean="schedulerService"/>	
+		</property>
+		<property name="targetMethod">
+			<value>autoStatReportExam</value>
+		</property>
+		<property name="concurrent" value="false"/>
+	</bean>
+
+	<!-- 定义任务调度服务运行时间：自动统计考试报表 -->
+	<bean id="schedulerRunTimeAutoStatReportExam" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail">
+			<ref bean="schedulerJobAutoStatReportExam"/>
+	 	</property>
+	 	<property name="cronExpression">
+	 		<!-- 每天凌晨2:00分开始 -->
+	 		<value>0 0 2 * * ?</value>
+		</property>
+	</bean>	
+	
+	<!-- 定义任务调度服务管理器 -->
+	<bean id="schedulerManager" lazy-init="false" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<property name="triggers">
+			<list>
+				<ref bean="schedulerRunTimeAutoValidateOrganServiceLimit"/>
+				<ref bean="schedulerRunTimeAutoStatReportExam"/>
+			</list>
+		</property>
+	</bean>		
+</beans>

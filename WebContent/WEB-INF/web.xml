@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" 
+	xmlns="http://java.sun.com/xml/ns/javaee" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+	http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+	
+	<!-- 配置字符集过滤器 -->
+	<filter>
+    	<filter-name>CharacterEncodingFilter</filter-name>
+    	<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+    	<init-param>
+      		<param-name>encoding</param-name>
+      		<param-value>UTF-8</param-value>
+    	</init-param>
+    	<init-param>
+      		<param-name>forceEncoding</param-name>
+		      <param-value>true</param-value>
+    	</init-param>
+  	</filter>	
+  	<filter-mapping>
+    	<filter-name>CharacterEncodingFilter</filter-name>
+    	<url-pattern>/*</url-pattern>
+  	</filter-mapping>
+
+  	<!-- 配置spring侦听器 -->
+  	<context-param>
+  		<param-name>contextConfigLocation</param-name>
+  		<param-value>/WEB-INF/classes/applicationContext.xml</param-value>
+  	</context-param>
+    <listener>
+    	<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+  		     
+  	<!-- 配置struts2过滤器 -->
+  	<filter>
+  		<filter-name>struts2</filter-name>
+  		<filter-class>org.apache.struts2.dispatcher.ng.filter.StrutsPrepareAndExecuteFilter</filter-class>
+  		<init-param>
+			<param-name>actionPackages</param-name>
+			<param-value>com.study.action</param-value>
+		</init-param>
+  	</filter>
+  	<filter-mapping>
+  		<filter-name>struts2</filter-name>
+  		<url-pattern>/*</url-pattern>
+		<dispatcher>REQUEST</dispatcher> 
+        <dispatcher>FORWARD</dispatcher>  
+        <dispatcher>INCLUDE</dispatcher>
+  	</filter-mapping>
+  	  	      	
+  	<!-- 配置页面地址伪静态化过滤器 -->
+	<filter>
+	    <filter-name>UrlRewriteFilter</filter-name>
+	    <filter-class>org.tuckey.web.filters.urlrewrite.UrlRewriteFilter</filter-class>
+	</filter>
+	<filter-mapping>
+	    <filter-name>UrlRewriteFilter</filter-name>
+	    <url-pattern>/*</url-pattern>
+	    <dispatcher>REQUEST</dispatcher>
+	    <dispatcher>FORWARD</dispatcher>
+	    <dispatcher>INCLUDE</dispatcher>
+	</filter-mapping>
+  	  		
+  	<!-- 配置验证码图片 -->
+	<servlet>
+    	<servlet-name>ImageServlet</servlet-name>
+    	<servlet-class>com.study.utility.ImageServlet</servlet-class>
+  	</servlet>
+  	<servlet-mapping>
+    	<servlet-name>ImageServlet</servlet-name>
+    	<url-pattern>/imageServlet</url-pattern>
+  	</servlet-mapping>
+  
+    <!-- 配置首页 -->   
+ 	<welcome-file-list>
+	    <welcome-file>index.jsp</welcome-file>
+  	</welcome-file-list> 
+  	
+  	<!-- 配置session参数 -->
+  	<session-config>   
+         <session-timeout>1800</session-timeout>   
+    </session-config>
+
+</web-app>

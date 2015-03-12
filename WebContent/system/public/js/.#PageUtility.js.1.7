@@ -1,0 +1,287 @@
+/* 
+ * 页面工具类 
+ */
+function PageUtility() {
+	
+}
+
+function showMSHeader() {
+	
+}
+
+/** 
+ * 获取ContextPath 
+ */
+PageUtility.getContextPath = function(){
+
+	var pathName = document.location.pathname;
+    var index = pathName.substr(1).indexOf("/");
+    var result = pathName.substr(0,index+1);
+    
+    if (result != "/Study") {
+    	return "";
+    } else {
+	    return result;
+    }
+        
+    return result;
+};
+
+/** 
+ * 获取默认的每页记录数
+ */
+PageUtility.getPerPageNumber = function() {
+	
+	return 20;
+}
+
+PageUtility.getQueryParamterByInputString = function(id) {
+	
+	var value =  $.trim($("#" + id).val());
+	
+	if (value != null && value != NaN && value != "") { 
+		return value;
+	} else {
+		return null;
+	}
+}
+
+PageUtility.getQueryParamterBySelect = function(id) {
+	
+	var value =  $.trim($("#" + id).val());
+	
+	if (value != null && value != NaN && value != "") { 
+		return value;
+	} else {
+		return null;
+	}
+}
+
+PageUtility.getFormDataByString = function(id, name, isNull) {
+	
+	var value =  $.trim($("#" + id).val());
+	
+	if (!(value != null && value != NaN && value != "")) { 
+		value = null;
+	}
+	
+	if (value == null && !isNull) {
+		throw "请填写" + name;
+	}
+	
+	return value;
+}
+
+PageUtility.getFormDataBySelect = function(id, name, isNull) {
+	
+	var value =  $.trim($("#" + id).val());
+	
+	if (!(value != null && value != NaN && value != "")) { 
+		value = null;
+	}
+	
+	if (value == null && !isNull) {
+		throw "请选择" + name;
+	}
+	
+	return value;
+}
+
+PageUtility.ajaxGetEnumNameOptions = function(enumName) {
+	
+	var paramters = {"enumName": enumName};
+	var url = PageUtility.getContextPath() + "/System/getEnumMap.action";
+	data = PageUtility.ajaxData(url, paramters);
+	
+	var html = "<option value=''>　</option>";
+	$.each(data,function(key,values){     
+		html += "<option value=" + key + ">" + values + "</option>"
+ 	}); 
+	
+	return html;
+}
+
+PageUtility.ajaxGetUrlOptions = function(strUrl) {
+	
+	data = PageUtility.ajaxData(strUrl, "");
+	
+	var html = "";
+	$.each(data,function(key,values){     
+		
+		html += "<option value=" + values.id + ">" + values.name + "</option>"
+ 	}); 
+	
+	return html;
+}
+
+
+PageUtility.ajaxGetEnumNameChecks = function(enumName) {
+	
+	var paramters = {"enumName": enumName};
+	var url = PageUtility.getContextPath() + "/System/getEnumMap.action";
+	data = PageUtility.ajaxData(url, paramters);
+	var html = "";
+	$.each(data,function(key,values){     
+		html += "<input type='checkbox' name='chkData' value='"+ key +"' />"+ values;
+ 	}); 
+	
+	return html;
+}
+
+PageUtility.ajaxGetEnumNameCheckValue = function(enumName) {
+	
+	var paramters = {"sysParamName": enumName};
+	var url = PageUtility.getContextPath() + "/System/getSysParamValue.action";
+	data = PageUtility.ajaxData(url, paramters);
+	
+	var datas = data.split(";");
+	var html = "";
+	for(var i = 0; i < datas.length - 1; i++){
+			html += "<input class='checkbox_s' type='checkbox' name='chkData' value='"+ datas[i] +"' />"+ datas[i];
+	}
+	
+	return html;
+}
+
+PageUtility.ajaxGetEnumNameCheckName = function(enumName,checkName) {
+	
+	var paramters = {"sysParamName": enumName};
+	var url = PageUtility.getContextPath() + "/System/getSysParamValue.action";
+	data = PageUtility.ajaxData(url, paramters);
+	
+	var datas = data.split(";");
+	var html = "";
+	for(var i = 0; i < datas.length - 1; i++){
+			html += "<input class='checkbox_s' type='checkbox' name='"+checkName+"' value='"+ datas[i] +"' />"+ datas[i];
+	}
+	
+	return html;
+}
+
+PageUtility.ajaxGetSysParamOptions = function(enumName) {
+	
+	var paramters = {"sysParamName": enumName};
+	var url = PageUtility.getContextPath() + "/System/getSysParamValue.action";
+	data = PageUtility.ajaxData(url, paramters);
+	var datas = data.split(";");
+	
+	var html = "<option value=''>　</option>";
+	for(var i = 0; i < datas.length - 1; i++){   
+		html += "<option value=" + datas[i] + ">" + datas[i] + "</option>"
+ 	}
+	
+	return html;
+}
+
+
+/** 
+ * 用Ajax获取数据 
+ * @param actionUrl action链接
+ * @param paramters 参数集
+ * @return 数据
+ */
+PageUtility.ajaxData = function(actionUrl, paramters) {
+
+	var data = null;
+	var result = false;
+	var actionMessage = "";
+	
+	$.ajax({
+		type : "post",
+		dataType : "json", 
+		async: false,
+		url : actionUrl, 
+		timeout: 10000,
+		data : paramters,
+		error: function(){
+			result = false;
+			actionMessage = "加载数据出错！请检查网络！";
+		},
+		success : function(msg){ 
+			if(msg.actionStatus == 'success'){
+				result = true;
+				data = msg.data;
+				actionMessage = msg.actionMessage;
+			} else {
+				result = false;
+				actionMessage = msg.actionMessage;
+				
+			}
+		}
+	});
+	
+	if (!result) {
+		alert(actionMessage);
+		//throw actionMessage;
+	};
+	
+	if (data == null) {
+		throw "未能成功加载数据,请刷新后操作！";
+	} 
+	
+	return data;
+}
+
+/** 
+ * 用Ajax执行操作 
+ * @param actionUrl action链接
+ * @param paramters 参数集
+ * @return 操作消息
+ */
+PageUtility.ajaxAction = function(actionUrl, paramters) {
+
+	var data = null;
+	var result = false;
+	var actionMessage = "";
+	
+	$.ajax({
+		type : "post",
+		dataType : "json", 
+		async: false,
+		url : actionUrl, 
+		data : paramters,
+		error: function(){
+			result = false;
+			actionMessage = "加载数据出错！请检查网络！";
+		},
+		success : function(msg){ 
+			if(msg.actionStatus == 'success'){
+				result = true;
+				actionMessage = msg.actionMessage;
+			} else {
+				result = false;
+				actionMessage = msg.actionMessage;
+			}
+		}
+	});
+	
+	if (result) {
+		return actionMessage;
+	} else {
+		throw actionMessage;
+	}
+}
+
+/** 
+ * 用于将下载文件的链接放到自己创建的iframe中，实现下载 
+ * @param url链接
+ */
+PageUtility.exportToFile = function(url) {
+
+	if($('#iframeExportToFile').length<=0){
+		$('body').append("<iframe id=\"iframeExportToFile\" style=\"display:none\"></iframe>");
+	} 
+ 	$('#iframeExportToFile').attr('src',url);
+}
+
+PageUtility.showUploadImagePopup = function(url) {
+	
+    $(".uploadImagePopup .url").text(url);
+	$(".uploadImagePopup .picture").html("<img src='" + url + "' width=100% height=100%/>");
+	$(".uploadImagePopup").bPopup({
+		opacity:0.1,
+		modalClose:false,
+		escClose:true
+	});
+
+}

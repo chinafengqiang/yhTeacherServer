@@ -1,0 +1,5 @@
+1.表Manager 增加sys_access字段 字符串，非空
+2.表SysParam 增加sys_param_value_type，数值型，非空，用于指明参数值是那种类型，需要后台校验。
+3.表QuestionCategory、CourseCategory表中增加level 数值型，非空,用于指明是第几层
+4.表CourseChapter，增加了sort_flag 数值型
+5.表Question，增加note 字符串

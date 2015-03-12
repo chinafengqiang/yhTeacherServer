@@ -1,0 +1,255 @@
+package com.study.action;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.examserver.model.EsExamSummary;
+import com.opensymphony.xwork2.ModelDriven;
+import com.study.action.form.ExamServerActionForm;
+import com.study.action.form.SessionLoginTypeEnum;
+import com.study.enums.ExamServerStatusEnum;
+import com.study.model.ExamServer;
+import com.study.model.factory.ModelFactoryFacade;
+import com.study.service.ServiceFacade;
+import com.study.utility.ActionValidator;
+import com.study.utility.PaginateResult;
+
+/**
+ * 考试服务器业务操作类
+ */
+public class ExamServerAction extends BaseActionSupport implements ModelDriven<ExamServerActionForm>{
+
+	/**
+	 * 日志记录器
+	 */
+	private static Log logger = LogFactory.getLog(ExamServerAction.class);
+	
+	/**
+	 * 数据工厂层门面 
+	 */
+	@Resource
+	private ModelFactoryFacade modelFactoryFacade;
+	
+	/**
+	 * 业务层门面 
+	 */
+	@Resource
+	private ServiceFacade serviceFacade;
+	
+	/**
+	 * Action表单
+	 */
+	private ExamServerActionForm actionForm = new ExamServerActionForm();
+	
+	/**
+	 * 获取考试服务器数据
+	 */
+	public String getExamServer() {
+		
+		try {
+			ActionValidator.create("考试服务器编号", this.actionForm.getExamServer().getId()).noNull();
+			
+			ExamServer examServer = this.modelFactoryFacade.getExamServerFactory().findById(this.actionForm.getExamServer().getId());
+			
+			this.setJsonResult_ActionResult(examServer);
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+	
+	/**
+	 * 按搜索条件获取考试服务器分页列表
+	 */
+	public String getExamServerListBySearch() {
+		
+		try {		
+			this.validateLoginType(SessionLoginTypeEnum.Manager);
+			
+			ActionValidator.create("分页参数", this.actionForm.getPaginateParamters()).noNull();
+			
+			PaginateResult paginateResult = this.modelFactoryFacade.getExamServerFactory().findListBySearch(
+					this.actionForm.getPaginateParamters());
+			
+			this.setJsonResult_ActionResult(paginateResult);
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+	
+	/**
+	 * 获取考试在各个服务器上的摘要
+	 */
+	public String getExamSummary() {
+		
+		try {
+			ActionValidator.create("考试编号", this.actionForm.getExamId()).noNull();
+			
+		//	List<EsExamSummary> list = this.serviceFacade.getExamServerService().getExamSummary( this.actionForm.getExamId());
+			
+			
+			List<EsExamSummary> list = new ArrayList<EsExamSummary>();
+			
+			EsExamSummary es = new EsExamSummary();
+			
+			es.setExamName("考试1");
+			es.setExamServerName("泰山服务器 192.168.0.1：8080");
+			es.setStatusName("等待开考");
+			es.setTotalNumber(1000);
+			es.setBeginExamNumber(200);
+			es.setEndExamNumber(100);
+			
+			list.add(es);
+			
+			EsExamSummary es1 = new EsExamSummary();
+			
+			es1.setExamName("考试2");
+			es1.setExamServerName("江苏服务器 192.168.0.1：8080");
+			es1.setStatusName("正在考试");
+			es1.setTotalNumber(900);
+			es1.setBeginExamNumber(300);
+			es1.setEndExamNumber(200);
+			
+			list.add(es1);
+			
+			this.setJsonResult_ActionResult(list);
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+	
+	/**
+	 * 获取考试服务器上的所有考试摘要
+	 */
+	public String getExamServerSummary() {
+		
+		try {
+			ActionValidator.create("考试服务器编号", this.actionForm.getExamServer().getId()).noNull();
+			
+		//	List<EsExamSummary> list = this.serviceFacade.getExamServerService().getExamServerSummary(this.actionForm.getExamServer().getId());
+			
+			List<EsExamSummary> list = new ArrayList<EsExamSummary>();
+			
+			EsExamSummary es = new EsExamSummary();
+			
+			es.setExamName("考试1");
+			es.setExamServerName("泰山服务器 192.168.0.1：8080");
+			es.setStatusName("等待开考");
+			es.setTotalNumber(1000);
+			es.setBeginExamNumber(200);
+			es.setEndExamNumber(100);
+			
+			list.add(es);
+			
+			EsExamSummary es1 = new EsExamSummary();
+			
+			es1.setExamName("考试2");
+			es1.setExamServerName("江苏服务器 192.168.0.1：8080");
+			es1.setStatusName("正在考试");
+			es1.setTotalNumber(900);
+			es1.setBeginExamNumber(300);
+			es1.setEndExamNumber(200);
+			
+			list.add(es1);
+			
+			
+			this.setJsonResult_ActionResult(list);
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+
+	/**
+	 * 新建考试服务器记录
+	 */
+	public String createExamServer() {
+		
+		try {
+			this.validateLoginType(SessionLoginTypeEnum.Manager);
+			
+			ActionValidator.create("考试服务器数据", this.actionForm.getExamServer()).noNull();
+			ActionValidator.create("名称", this.actionForm.getExamServer().getName()).noNull();
+			ActionValidator.create("服务器地址", this.actionForm.getExamServer().getUrl()).noNull();
+			 
+			this.serviceFacade.getExamServerService().createExamServer(
+					this.actionForm.getExamServer().getName(),
+					this.actionForm.getExamServer().getUrl(),
+					this.actionForm.getExamServer().getNote(),
+					ExamServerStatusEnum.valueOf(this.actionForm.getExamServer().getStatus()));
+			
+			this.setJsonResult_ActionResult(true, "您已成功新建考试服务器记录！");
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+	
+	/**
+	 * 修改考试服务器记录
+	 */
+	public String modifyExamServer() {
+		
+		try {
+			this.validateLoginType(SessionLoginTypeEnum.Manager);
+			
+			ActionValidator.create("考试服务器数据", this.actionForm.getExamServer()).noNull();
+			ActionValidator.create("考试服务器编号", this.actionForm.getExamServer().getId()).noNull();
+			ActionValidator.create("名称", this.actionForm.getExamServer().getName()).noNull();
+			ActionValidator.create("服务器地址", this.actionForm.getExamServer().getUrl()).noNull();
+			
+			this.serviceFacade.getExamServerService().modifyExamServer(
+					this.actionForm.getExamServer().getId(),
+					this.actionForm.getExamServer().getName(),
+					this.actionForm.getExamServer().getUrl(),
+					this.actionForm.getExamServer().getNote(),
+					ExamServerStatusEnum.valueOf(this.actionForm.getExamServer().getStatus()));
+			
+			this.setJsonResult_ActionResult(true, "您已成功修改考试服务器记录！");
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+	
+	/**
+	 * 删除考试服务器记录
+	 */
+	public String removeExamServer() {
+		
+		try {
+			this.validateLoginType(SessionLoginTypeEnum.Manager);
+			
+			ActionValidator.create("考试服务器数据", this.actionForm.getExamServer()).noNull();
+			ActionValidator.create("考试服务器编号", this.actionForm.getExamServer().getId()).noNull();
+			 
+			this.serviceFacade.getExamServerService().removeExamServer(
+					this.actionForm.getExamServer().getId());
+			
+			this.setJsonResult_ActionResult(true, "您已成功删除考试服务器记录！");
+		} catch (Exception ex) {
+			this.setJsonResult_ActionResult(false, ex.getMessage());
+		}
+		
+		return JSONResult;
+	}
+	
+	@Override
+	public ExamServerActionForm getModel() {
+		return actionForm;
+	}
+
+}

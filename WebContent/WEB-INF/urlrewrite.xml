@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE urlrewrite PUBLIC "-//tuckey.org//DTD UrlRewrite 4.0//EN"
+        "http://www.tuckey.org/res/dtds/urlrewrite4.0.dtd">
+        
+<urlrewrite>
+    <rule>
+        <from>^/index.jsp</from>
+        <to type="forward">/US-index</to>
+    </rule>
+    <rule>
+        <from>^/MS-(.*)$</from>
+        <to type="forward">/MS/$1.action</to>
+    </rule>    
+    <outbound-rule>
+        <from>^/MS/(.*).action$</from>
+        <to>/MS-$1</to>
+    </outbound-rule>
+    <rule>
+        <from>^/OS-(.*)$</from>
+        <to type="forward">/OS/$1.action</to>
+    </rule>
+    <outbound-rule>
+        <from>^/OS/(.*).action$</from>
+        <to>/OS-$1</to>
+    </outbound-rule>  
+    <rule>
+        <from>^/US-(.*)$</from>
+        <to type="forward">/system/US/html/$1.html</to>
+    </rule>
+    <outbound-rule>
+        <from>^/system/US/html/(.*).html$</from>
+        <to>/US-$1</to>
+    </outbound-rule>     
+</urlrewrite>
+

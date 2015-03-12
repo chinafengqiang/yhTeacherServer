@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts PUBLIC "-//Apache Software Foundation//DTD Struts Configuration 2.0//EN" "http://struts.apache.org/dtds/struts-2.0.dtd" >
+<struts>
+	<constant name="struts.enable.SlashesInActionNames" value="true" />
+	<constant name="struts.mapper.alwaysSelectFullNamespace" value="false" />
+	<constant name="struts.enable.DynamidMethodInvocation" value="true" />
+	<constant name="struts.codebehind.pathPrefix" value="/jsp/" />
+	
+	<include file="struts-default.xml"/>
+	
+	<package name="default" extends="json-default" namespace="/">
+	
+		<!--定义字符串返回类型-->
+		<result-types> 
+             <result-type name="string" class="com.study.utility.StringResultType"></result-type> 
+        </result-types> 
+        
+        <!--定义Action拦截器-->
+		<default-interceptor-ref name="defaultStack" />
+				
+		<action name="MS/*" class="com.study.action.menu.MSAction" method="{1}" >
+			<result name="success">/system/MS/{1}.jsp</result>
+			<result name="error">/system/MS/error.jsp</result>
+		</action>
+		
+		<action name="OS/*" class="com.study.action.menu.OSAction" method="{1}" >
+			<result name="success">/system/OS/{1}.jsp</result>
+			<result name="error">/system/OS/error.jsp</result>
+		</action>
+			         
+        <action name="*/*" class="com.study.action.{1}Action" method="{2}" >
+		
+			<result name="success">/jsp/{1}/{2}.jsp</result>
+			
+            <result name="JSONResult" type="json">
+            	<param name="root">jsonResult</param>
+            </result>
+            			
+            <result name="JSONResultObject" type="json">
+            	<param name="root">jsonResultObject</param>
+            </result>
+            
+            <result name="StringResult" type="string">
+            	<param name="stringName">stringResult</param>
+            </result>
+            
+            <result name="ExportFileResultSuccess" type="stream">
+		        <param name="contentType">${fileFileContentType}</param>
+		        <param name="inputName">inputStream</param>
+		        <param name="contentDisposition">attachment;filename="${fileFileName}"</param>
+		        <param name="bufferSize">2048</param>
+		    </result>
+		    
+		    <result name="ExportFileResultError">/jsp/error/exportFileError.jsp</result>             
+		</action>
+
+	</package>	      	
+</struts>
+
+

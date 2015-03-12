@@ -1,0 +1,568 @@
+package com.study.service.impl;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TreeMap;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.stereotype.Service;
+
+import com.study.dao.DAOFacade;
+import com.study.enums.ArticleStatusEnum;
+import com.study.enums.ArticleTypeEnum;
+import com.study.enums.CourseStatusEnum;
+import com.study.enums.CourseTypeEnum;
+import com.study.enums.CourseUserStatusEnum;
+import com.study.enums.ExamModeEnum;
+import com.study.enums.ExamServerStatusEnum;
+import com.study.enums.ExamStatusEnum;
+import com.study.enums.ExamUserQuestionStatusEnum;
+import com.study.enums.ExamUserStatusEnum;
+import com.study.enums.ManagerGradeEnum;
+import com.study.enums.ManagerStatusEnum;
+import com.study.enums.NoticeGradeEnum;
+import com.study.enums.NoticeStatusEnum;
+import com.study.enums.OrganStatusEnum;
+import com.study.enums.OrganTypeEnum;
+import com.study.enums.QuestionFetchTypeEnum;
+import com.study.enums.QuestionOptionsSortTypeEnum;
+import com.study.enums.QuestionShowTypeEnum;
+import com.study.enums.QuestionSortTypeEnum;
+import com.study.enums.QuestionTypeEnum;
+import com.study.enums.ReportExamDataStatusEnum;
+import com.study.enums.ReportExamResultTypeEnum;
+import com.study.enums.ReportExamStatusEnum;
+import com.study.enums.SysAccessTypeEnum;
+import com.study.enums.SysParamTypeEnum;
+import com.study.enums.SysParamValueTypeEnum;
+import com.study.enums.TestPaperStatusEnum;
+import com.study.enums.TimerModeEnum;
+import com.study.enums.UserStatusEnum;
+import com.study.model.Manager;
+import com.study.model.SysParam;
+import com.study.model.factory.ModelFactoryFacade;
+import com.study.service.SystemService;
+import com.study.utility.AESUtility;
+import com.study.utility.GZipUtility;
+import com.study.utility.HexStrUtility;
+
+/**
+ * 系统业务接口实现类
+ */
+@Service
+public class SystemServiceImpl implements SystemService {
+
+	/**
+	 * 系统版本号
+	 */
+	public static String Version = "0.85";
+	
+	/**
+	 * 存储OSS权限Key
+	 */
+	private static String OSSAccessKeyId = "";
+	
+	/**
+	 * 存储OSS权限值
+	 */
+	private static String OSSAccessKeySecret = "";
+	
+	/**
+	 * 存储OSS存储单元
+	 */
+	private static String OSSBucketName = "";
+	
+	/**
+	 * 存储OSS存储单元链接
+	 */
+	private static String OSSBucketUrl = "";
+	
+	/**
+	 * 存储服务器名
+	 */
+	private static String ServerName = "";
+	
+	/**
+	 * 开考延时时间
+	 */
+	private static Integer BeginExamDelayedTime = 0;
+	
+	/**
+	 * 提交试卷延时时间
+	 */
+	private static Integer CommitExamDelayedTime = 0;
+	
+	/**
+	 * 内存取操作超时的值
+	 */
+	private static Integer MemGetTimeOut = 0;
+
+	/**
+	 * 日志记录器
+	 */
+	private static Log logger = LogFactory.getLog(SystemServiceImpl.class);
+	
+	/**
+	 * 数据操作门面
+	 */
+	@Resource
+	private DAOFacade daoFacade;
+	
+	/**
+	 * 数据工厂门面 
+	 */
+	@Resource
+	private ModelFactoryFacade modelFactoryFacade;
+	
+	/**
+	 * 获取AES加密Key
+	 */
+	public String getAESKey() {
+		
+		return "pftstudy";
+	}
+	
+	/**
+	 * 获取服务器名称
+	 */
+	public String getServerName() {
+		
+		if (StringUtils.isBlank(ServerName)) {
+			ServerName = getSysParamValueByString(SysParamTypeEnum.SiteName);
+		}
+		
+		return ServerName;
+	}
+	
+	/**
+	 * 内存取操作超时最大值
+	 */
+	public Integer getMemGetTimeOut() {
+		
+		if (MemGetTimeOut == 0) {
+			MemGetTimeOut = Integer.parseInt(getApplicationProperty("memcached.GetAcitonTimeOut"));
+		}
+		
+		return MemGetTimeOut;
+	}
+	
+	/**
+	 * 获取系统设置的开考延时时间
+	 */
+	public Integer getBeginExamDelayedTime() {
+		
+		if (BeginExamDelayedTime == 0 ) {
+			BeginExamDelayedTime = Integer.parseInt(getApplicationProperty("Exam.BeginExamDelayedTime"));
+		}
+		
+		return BeginExamDelayedTime;
+	}
+	
+	/**
+	 * 获取系统设置的提交试卷延时时间
+	 */
+	public Integer getCommitExamDelayedTime() {
+		
+		if (CommitExamDelayedTime == 0 ) {
+			CommitExamDelayedTime = Integer.parseInt(getApplicationProperty("Exam.CommitExamDelayedTime"));
+		}
+		
+		return CommitExamDelayedTime;
+	}
+	
+	/**
+	 * 获取OSS权限Key
+	 */
+	public String getOSSAccessKeyId() {
+		
+		if (StringUtils.isBlank(OSSAccessKeyId)) {
+			OSSAccessKeyId = getApplicationProperty("OSS.AccessKeyId");
+		}
+		
+		return OSSAccessKeyId;
+	}
+	
+	/**
+	 * 获取OSS权限值
+	 */
+	public String getOSSAccessKeySecret() {
+		
+		if (StringUtils.isBlank(OSSAccessKeySecret)) {
+			OSSAccessKeySecret = getApplicationProperty("OSS.AccessKeySecret");
+		}
+		
+		return OSSAccessKeySecret;
+	}
+	
+	/**
+	 * 获取OSS存储单元
+	 */
+	public String getOSSBucketName() {
+		
+		if (StringUtils.isBlank(OSSBucketName)) {
+			OSSBucketName = getApplicationProperty("OSS.BucketName");
+		}
+		
+		return OSSBucketName;
+	}
+	
+	/**
+	 * 获取OSS存储单元链接
+	 */
+	public String getOSSBucketUrl() {
+		
+		if (StringUtils.isBlank(OSSBucketUrl)) {
+			OSSBucketUrl = getApplicationProperty("OSS.BucketUrl");
+		}
+		
+		return OSSBucketUrl;
+	}
+	
+	/**
+	 * 获取应用配置文件
+	 * @param propertyName 属性名
+	 * @return 属性值
+ 	 */
+	private String getApplicationProperty(String propertyName) {
+		
+		org.springframework.core.io.Resource resource = new ClassPathResource("/application.properties");
+		try {
+			Properties props = PropertiesLoaderUtils.loadProperties(resource);
+			return props.getProperty(propertyName);
+		} catch (IOException e) {
+			return "";
+		}
+	}
+	
+	/**
+	 * 修改系统参数
+	 * @param sysParamTypeEnum 参数类型
+	 * @param value 参数值
+	 * @param curManagerId 当前教师编号
+	 * @return 系统参数
+	 * @throws Exception
+	 */
+	public SysParam modifySysParam(SysParamTypeEnum sysParamTypeEnum, String value, Long curManagerId) throws Exception {
+		
+		//获取系统参数
+		SysParam sysParam = this.modelFactoryFacade.getSysParamFactory().findByParamType(sysParamTypeEnum);
+		
+		//判断是否存在
+		if (sysParam == null) {
+			throw new Exception("系统参数已不存在！");
+		}
+		
+		//判断是否可修改
+		if (!sysParam.getCanModify()) {
+			throw new Exception("此系统参数值不可修改！");
+		}
+		
+		//获取当前教师帐号
+		Manager curManager = this.modelFactoryFacade.getManagerFactory().findById(curManagerId);
+		
+		//判断当前教师是否存在
+		if (curManager == null) {
+			throw new Exception("当前教师帐号已不存在！");
+		}
+		
+		//判断当前教师是否是高级教师
+		if (curManager.getGrade().equals(ManagerGradeEnum.Normal.toValue())) {
+			throw new Exception("普通教师不可创建系统参数！");
+		}
+		
+		//判断是否应该输入数值
+		if ((sysParam.getSysParamValueType().equals(SysParamValueTypeEnum.IntegerValue.toValue()) ||
+			 sysParam.getSysParamValueType().equals(SysParamValueTypeEnum.DoubleValue.toValue())) 
+			 && !StringUtils.isNumeric(value)) {
+			throw new Exception("请输入数值！");
+		}
+		
+		//判断是否是字符串列表
+		if (sysParam.getSysParamValueType().equals(SysParamValueTypeEnum.StringList.toValue())){
+			value = value.replace("；", ";");
+		}
+		
+		//修过记录
+		sysParam.setValue(value);
+		
+		this.daoFacade.getSysParamDAO().update(sysParam);
+		
+		return sysParam;
+	}
+	
+	/**
+	 * 按参数名获取系统参数值
+	 * @param sysParamName 参数名
+	 * @return 系统参数
+	 * @throws Exception
+	 */
+	public String getSysParamValue(String sysParamName) throws Exception {
+		
+		SysParamTypeEnum sysParamTypeEnum = SysParamTypeEnum.nameOf(sysParamName);
+		
+		if (sysParamTypeEnum == null) {
+			throw new Exception("未找到此参数值");
+		}
+		
+		return this.getSysParamValueByString(sysParamTypeEnum);
+	}
+
+	/**
+	 * 获取系统参数值（字符串）
+	 * @param sysParamTypeEnum 参数类型
+	 * @return 参数值
+	 */
+	public String getSysParamValueByString(SysParamTypeEnum sysParamTypeEnum) {
+		
+		SysParam sysParam = this.modelFactoryFacade.getSysParamFactory().findByParamType(sysParamTypeEnum);
+		
+		if (sysParam == null) {
+			return null;
+		}
+		
+		return sysParam.getValue();
+	}
+	
+	/**
+	 * 获取系统参数值（数值）
+	 * @param sysParamTypeEnum 参数类型
+	 * @return 参数值
+	 */
+	public Integer getSysParamValueByInteger(SysParamTypeEnum sysParamTypeEnum) {
+		
+		SysParam sysParam = this.modelFactoryFacade.getSysParamFactory().findByParamType(sysParamTypeEnum);
+		
+		if (sysParam == null) {
+			return null;
+		}
+
+		return Integer.parseInt(sysParam.getValue());
+	}
+	
+	/**
+	 * 校验值是否符合系统参数中字符串列表的约定
+	 * @param value 值
+	 * @param sysParamTypeEnum 参数类型
+	 * @throws Exception
+	 */
+	public void verifySysParamByStringList(String value, SysParamTypeEnum sysParamTypeEnum) throws Exception {
+		
+		String valueList = getSysParamValueByString(sysParamTypeEnum);
+		
+		if (valueList == null) {
+			throw new Exception("不符合参数【" + sysParamTypeEnum.toName() + "】的约定！");
+		}
+		
+		String[] list = valueList.split(";");
+		for (String str : list) {
+			if (value.trim().equals(str.trim())) {
+				return;
+			}
+		}
+		
+		throw new Exception("不符合参数【" + sysParamTypeEnum.toName() + "】的约定！");
+	}
+	
+	/**
+	 * 获取子站点列表
+	 * @return
+	 */
+	public Map getSubSiteMap() {
+		
+		TreeMap<String, String> map = new TreeMap<String, String>();
+		
+		//判断是否存在子站点
+		if (!getSysParamValueByString(SysParamTypeEnum.HaveSubSite).equals("是")) {
+			return map;
+		}
+		
+		//获取地址列表和单位编号列表
+		String[] nameList = getSysParamValueByString(SysParamTypeEnum.SubSiteName).split(";");
+		String[] urlList = getSysParamValueByString(SysParamTypeEnum.SubSiteUrl).split(";");
+		
+		for (int i=0; i<nameList.length; i++ ) {
+			map.put(nameList[i], urlList[i]);
+		}
+		
+		return map;
+	}
+	
+	/**
+	 * 获取枚举数据
+	 * @param enumName 枚举名称
+	 * @return 枚举数据
+	 * @throws Exception 
+	 */
+	public Map getEnumMap(String enumName) throws Exception {
+			
+		if (enumName.toLowerCase().equals(getActualClassName(ArticleTypeEnum.class.getName().toLowerCase()))) {
+			return ArticleTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(ArticleStatusEnum.class.getName().toLowerCase()))) {
+			return ArticleStatusEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(CourseTypeEnum.class.getName().toLowerCase()))) {
+			return CourseTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(CourseStatusEnum.class.getName().toLowerCase()))) {
+			return CourseStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(CourseUserStatusEnum.class.getName().toLowerCase()))) {
+			return CourseUserStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(QuestionFetchTypeEnum.class.getName().toLowerCase()))) {
+			return QuestionFetchTypeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(TimerModeEnum.class.getName().toLowerCase()))) {
+			return TimerModeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(ExamStatusEnum.class.getName().toLowerCase()))) {
+			return ExamStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(ExamServerStatusEnum.class.getName().toLowerCase()))) {
+			return ExamServerStatusEnum.toMap();
+		}			
+		if (enumName.toLowerCase().equals(getActualClassName(ExamUserStatusEnum.class.getName().toLowerCase()))) {
+			return ExamUserStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(ExamUserQuestionStatusEnum.class.getName().toLowerCase()))) {
+			return ExamUserQuestionStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(ManagerGradeEnum.class.getName().toLowerCase()))) {
+			return ManagerGradeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(ManagerStatusEnum.class.getName().toLowerCase()))) {
+			return ManagerStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(NoticeGradeEnum.class.getName().toLowerCase()))) {
+			return NoticeGradeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(NoticeStatusEnum.class.getName().toLowerCase()))) {
+			return NoticeStatusEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(OrganTypeEnum.class.getName().toLowerCase()))) {
+			return OrganTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(OrganStatusEnum.class.getName().toLowerCase()))) {
+			return OrganStatusEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(QuestionTypeEnum.class.getName().toLowerCase()))) {
+			return QuestionTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(ReportExamStatusEnum.class.getName().toLowerCase()))) {
+			return ReportExamStatusEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(ReportExamDataStatusEnum.class.getName().toLowerCase()))) {
+			return ReportExamDataStatusEnum.toMap();
+		}			
+		if (enumName.toLowerCase().equals(getActualClassName(ReportExamResultTypeEnum.class.getName().toLowerCase()))) {
+			return ReportExamResultTypeEnum.toMap();
+		}		
+		if (enumName.toLowerCase().equals(getActualClassName(SysParamTypeEnum.class.getName().toLowerCase()))) {
+			return SysParamTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(UserStatusEnum.class.getName().toLowerCase()))) {
+			return UserStatusEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(QuestionShowTypeEnum.class.getName().toLowerCase()))) {
+			return QuestionShowTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(QuestionSortTypeEnum.class.getName().toLowerCase()))) {
+			return QuestionSortTypeEnum.toMap();
+		}
+		if (enumName.toLowerCase().equals(getActualClassName(TestPaperStatusEnum.class.getName().toLowerCase()))) {
+			return TestPaperStatusEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(QuestionOptionsSortTypeEnum.class.getName().toLowerCase()))) {
+			return QuestionOptionsSortTypeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(SysAccessTypeEnum.class.getName().toLowerCase()))) {
+			return SysAccessTypeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(SysParamValueTypeEnum.class.getName().toLowerCase()))) {
+			return SysParamValueTypeEnum.toMap();
+		}	
+		if (enumName.toLowerCase().equals(getActualClassName(ExamModeEnum.class.getName().toLowerCase()))) {
+			return ExamModeEnum.toMap();
+		}
+		
+		throw new Exception("未找到合适的枚举数据！");
+	}
+	
+	/**
+	 * 获取类的实际名称（不含Package）
+	 * @param className 类名
+	 * @return
+	 */
+	private String getActualClassName(String className) {
+	
+		String[] a = className.replace(".", ";").split(";");
+		return a[a.length - 1];
+	}
+	
+	/**
+	 * 加密数据
+	 * @param data
+	 * @return
+	 */
+	public String encryptData(String data) {
+		
+		String result = HexStrUtility.encode(data);
+		result = GZipUtility.gzip(result);
+		return AESUtility.encryptText(result, getAESKey());
+	}
+	
+	/**
+	 * 解密数据
+	 * @param data
+	 * @return
+	 */
+	public String decryptData(String data) {
+		
+		String result = AESUtility.decryptText(data, getAESKey());
+		result = GZipUtility.gunzip(result);
+		return HexStrUtility.decode(result);
+	}
+	
+	/**
+	 * 加密数据
+	 * @param password
+	 * @return
+	 */
+	public String encryptPassword(String password) {
+		
+		String result = HexStrUtility.encode(password);
+		return AESUtility.encryptText(result, getAESKey());
+	}
+	
+	/**
+	 * 解密数据
+	 * @param password
+	 * @return
+	 */
+	public String decryptPassword(String password) {
+		
+		String result = AESUtility.decryptText(password, getAESKey());
+		return HexStrUtility.decode(result);
+	}
+	
+    public static void main(String[] args) throws Exception {
+    	
+    	String data = "888888";
+		String result = HexStrUtility.encode(data);
+		String s = AESUtility.encryptText(result, "pftstudy");
+		
+        System.out.println("密文：" + s);
+        
+        String result1 = AESUtility.decryptText(s,"pftstudy");
+		String s1 = HexStrUtility.decode(result1);
+		System.out.println("明文：" + s1);
+    }
+}

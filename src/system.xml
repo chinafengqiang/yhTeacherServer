@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<System>
+	<Organ name="csspfb" actualName="长沙市普法办" password="999999" shortName="长沙市普法办" area="长沙市"/>
+	<Manager name="admin" actualName="系统管理员" password="999999" />
+	<CourseCategory name="课程分类" />
+	<QuestionCategory name="题库分类" />
+	<SysParams>
+		<Param sysParamType="0" sysParamValueType="0" name="站点名称" value="长沙市" note="" canModify="0" />
+		<Param sysParamType="1" sysParamValueType="1" name="考试分类" value="分类1;分类2;分类3;" note="" canModify="1" />
+		<Param sysParamType="2" sysParamValueType="1" name="试卷分类" value="分类1;分类2;分类3;" note="" canModify="1" />
+		<Param sysParamType="3" sysParamValueType="1" name="职务级别" value="职务1;职务2;职务3;" note="" canModify="1" />
+		<Param sysParamType="4" sysParamValueType="1" name="行业" value="行业1;行业2;行业3;" note="" canModify="1" />
+		<Param sysParamType="5" sysParamValueType="1" name="新闻频道" value="国内新闻;国外新闻;行业新闻;" note="" canModify="1" />
+		<Param sysParamType="6" sysParamValueType="1" name="案例频道" value="最新案例;特殊案例;经典案例;" note="" canModify="1" />
+		<Param sysParamType="7" sysParamValueType="0" name="默认教师帐号密码" value="999999" note="" canModify="1" />
+		<Param sysParamType="8" sysParamValueType="0" name="默认单位帐号密码" value="999999" note="" canModify="1" />
+		<Param sysParamType="9" sysParamValueType="0" name="默认学员帐号密码" value="888888" note="" canModify="1" />
+		<Param sysParamType="10" sysParamValueType="0" name="是否拥有子站点" value="是" note="" canModify="0" />
+		<Param sysParamType="11" sysParamValueType="1" name="子站点名称" value="长沙;常德;" note="" canModify="1" />
+		<Param sysParamType="12" sysParamValueType="1" name="子站点地址 " value="http://changsha.fxwzh.com;http://changde.fxwzh.com;" note="" canModify="1" />
+		<Param sysParamType="13" sysParamValueType="1" name="子站点单位编号 " value="" note="" canModify="1" />
+		<Param sysParamType="14" sysParamValueType="1" name="友情链接名称" value="省厅;省政府;" note="" canModify="1" />
+		<Param sysParamType="15" sysParamValueType="1" name="友情链接地址 " value="http://www.aaa.com;http://www.bbb.com;" note="" canModify="1" />
+		<Param sysParamType="16" sysParamValueType="1" name="单位所属地区" value="长沙市;常德市;" note="" canModify="1" />
+	</SysParams>
+</System>

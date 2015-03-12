@@ -1,0 +1,772 @@
+package com.study.service.impl;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.tuckey.web.filters.urlrewrite.utils.StringUtils;
+
+import com.study.dao.DAOFacade;
+import com.study.enums.QuestionOptionsSortTypeEnum;
+import com.study.enums.QuestionShowTypeEnum;
+import com.study.enums.QuestionSortTypeEnum;
+import com.study.enums.QuestionTypeEnum;
+import com.study.enums.TestPaperStatusEnum;
+import com.study.model.Question;
+import com.study.model.TestPaper;
+import com.study.model.TestPaperQuestion;
+import com.study.model.factory.ModelFactoryFacade;
+import com.study.model.part.TestPaperOption;
+import com.study.service.ManagerService;
+import com.study.service.SystemService;
+import com.study.service.TestPaperService;
+import com.study.utility.DateUtility;
+import com.study.utility.FileUtility;
+import com.study.utility.HexStrUtility;
+import com.study.utility.JSONConvertor;
+import com.study.utility.SystemUtility;
+
+/**
+ * 试卷业务接口实现类
+ */
+@Service
+public class TestPaperServiceImpl implements TestPaperService {
+
+	/**
+	 * 日志记录器
+	 */
+	private static Log logger = LogFactory.getLog(TestPaperServiceImpl.class);
+	
+	/**
+	 * 数据操作门面
+	 */
+	@Resource
+	private DAOFacade daoFacade;
+	
+	/**
+	 * 数据工厂门面 
+	 */
+	@Resource
+	private ModelFactoryFacade modelFactoryFacade;
+	
+	/**
+	 * 教师业务接口 
+	 */
+	@Resource
+	private ManagerService managerService;
+	
+	/**
+	 * 系统业务接口 
+	 */
+	@Resource
+	private SystemService systemService;
+	
+	/**
+	 * 校验试卷编辑
+	 * @param testPaper 试卷
+	 * @throws Exception 
+	 */
+	private void validateTestPaperEdit(TestPaper testPaper) throws Exception {
+		
+		//判断试卷名称是否可空
+		if (StringUtils.isBlank(testPaper.getName())) {
+			throw new Exception("试卷名称不可为空！");
+		}
+		
+		//判断试卷配置是否为空
+		if (StringUtils.isBlank(testPaper.getTestPaperOptions())) {
+			throw new Exception("试卷配置不可为空！");
+		}
+		
+		//判断试卷总分
+		if (testPaper.getTotalScore().intValue() > 200 || testPaper.getTotalScore().intValue() < 1) {
+			throw new Exception("试卷总分应在1-200之间！");
+		}
+		
+		//判断通过分数
+		if (testPaper.getPassScore().intValue() > testPaper.getTotalScore().intValue() || testPaper.getPassScore().intValue() < 0) {
+			throw new Exception("通过分数应小于试卷总分并大于等于0！");
+		}
+		
+		//判断题目套数
+		if (testPaper.getTotalSeries().intValue() > 10 || testPaper.getTotalSeries().intValue() < 1) {
+			throw new Exception("题目套数应在1-10之间！");
+		}
+		
+		//判断试卷配置中题目的总分数和试卷总分是否一致
+		if (testPaper.getCanIgnoreQuestionScore()) {
+			
+			//解析出试卷配置
+			List<TestPaperOption> testPagerOptionList = JSONConvertor.json2List(testPaper.getTestPaperOptions(), TestPaperOption.class);
+			
+			//累计试卷题目分数
+			Double score = 0d;
+			for (TestPaperOption option : testPagerOptionList) {
+				score = score + option.getNumber() * option.getScore();
+			}
+			
+			//判断分数
+			if (!score.equals(testPaper.getTotalScore().doubleValue())) {
+				throw new Exception("试卷配置中题目的总分数和试卷总分不符！");
+			}
+		}
+  	}
+
+	/**
+	 * 创建试卷
+	 * @param name 名称
+	 * @param description 描述
+	 * @param category 分类
+	 * @param testPagerOptions 配置
+	 * @param questionSortTypeEnum 题目排序方式
+	 * @param questionOptionsSortTypeEnum 题目选项排序方式
+	 * @param credit 学分
+	 * @param totalScore 总分
+	 * @param totalSeries 题目套数
+	 * @param passScore 通过分数
+	 * @param canIgnoreQuestionScore 是否忽略题目原有的分数
+	 * @param statusEnum 状态 
+	 * @param curManagerId 当前管理员编号
+	 * @return 试卷
+	 * @throws Exception
+	 */
+	public TestPaper createTestPaper(String name, String description, String category,
+			String testPaperOptions, QuestionSortTypeEnum questionSortTypeEnum,
+			QuestionOptionsSortTypeEnum questionOptionsSortTypeEnum, Integer credit, Integer totalScore, Integer totalSeries, 
+			Integer passScore, Boolean canIgnoreQuestionScore, TestPaperStatusEnum statusEnum, Long curManagerId) throws Exception {
+		
+		//创建试卷记录
+		TestPaper testPaper = new TestPaper();	
+		
+		testPaper.setName(name);
+		testPaper.setTestPaperKey(SystemUtility.createUUID());
+		testPaper.setDescription(description);
+		testPaper.setCategory(category);
+		testPaper.setTestPaperOptions(testPaperOptions);
+		testPaper.setQuestionShowType(QuestionShowTypeEnum.All.toValue());
+		testPaper.setQuestionSortType(questionSortTypeEnum.toValue());
+		testPaper.setQuestionOptionsSortType(questionOptionsSortTypeEnum.toValue());
+		testPaper.setCredit(credit);
+		testPaper.setTotalScore(totalScore);
+		testPaper.setTotalSeries(totalSeries);
+		testPaper.setPassScore(passScore);
+		testPaper.setCanIgnoreQuestionScore(canIgnoreQuestionScore);
+		testPaper.setStatus(statusEnum.toValue());
+		testPaper.setCreatedTime(DateUtility.getCurDate());
+		testPaper.setCreator(curManagerId);
+		
+		//校验试卷编辑
+		this.validateTestPaperEdit(testPaper);
+		
+		this.daoFacade.getTestPaperDAO().insert(testPaper);
+		
+		return testPaper;
+	}
+	
+	/**
+	 * 修改试卷
+	 * @param id 编号
+	 * @param name 名称
+	 * @param description 描述
+	 * @param category 分类
+	 * @param testPagerOptions 配置
+	 * @param questionSortTypeEnum 题目排序方式
+	 * @param questionOptionsSortTypeEnum 题目选项排序方式
+	 * @param credit 学分
+	 * @param totalScore 总分
+	 * @param totalSeries 题目套数
+	 * @param passScore 通过分数
+	 * @param canIgnoreQuestionScore 是否忽略题目原有的分数
+	 * @param statusEnum 状态 
+	 * @param curManagerId 当前管理员编号
+	 * @return 试卷
+	 * @throws Exception
+	 */
+	public TestPaper modifyTestPaper(Long id, String name, String description, String category,
+			String testPaperOptions, QuestionSortTypeEnum questionSortTypeEnum,
+			QuestionOptionsSortTypeEnum questionOptionsSortTypeEnum, Integer credit, Integer totalScore, Integer totalSeries, 
+			Integer passScore, Boolean canIgnoreQuestionScore, TestPaperStatusEnum statusEnum, Long curManagerId) throws Exception {
+		
+		//获取试卷记录
+		TestPaper testPaper = this.modelFactoryFacade.getTestPaperFactory().findById(id);	
+		
+		//判断试卷记录是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷记录已不存在！");
+		}
+		
+		//判断试卷是否已经被引用
+		if (this.modelFactoryFacade.getExamFactory().findCountByTestPaper(id) > 0) {
+			throw new Exception("此试卷已被考试引用，不可修改！");
+		}
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(testPaper.getCreator(), curManagerId);
+		
+		//修改记录
+		testPaper.setName(name);
+		testPaper.setDescription(description);
+		testPaper.setCategory(category);
+		testPaper.setTestPaperOptions(testPaperOptions);
+		testPaper.setQuestionSortType(questionSortTypeEnum.toValue());
+		testPaper.setQuestionOptionsSortType(questionOptionsSortTypeEnum.toValue());
+		testPaper.setCredit(credit);
+		testPaper.setTotalScore(totalScore);
+		testPaper.setTotalSeries(totalSeries);
+		testPaper.setPassScore(passScore);
+		testPaper.setCanIgnoreQuestionScore(canIgnoreQuestionScore);
+		testPaper.setStatus(statusEnum.toValue());
+		testPaper.setCreatedTime(DateUtility.getCurDate());
+		testPaper.setCreator(curManagerId);
+		
+		//校验试卷编辑
+		this.validateTestPaperEdit(testPaper);
+		
+		this.daoFacade.getTestPaperDAO().update(testPaper);
+		
+		return testPaper;
+	}
+	
+	/**
+	 * 校验试卷操作
+	 * @param testPaperId 试卷编号
+	 * @param curManagerId 当前管理员编号
+	 * @return 试卷
+	 * @throws Exception
+	 */
+	private TestPaper validateTestPaperAction(Long testPaperId, Long curManagerId) throws Exception {
+		
+		//获取试卷记录
+		TestPaper testPaper = this.modelFactoryFacade.getTestPaperFactory().findById(testPaperId);	
+		
+		//判断试卷记录是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷记录已不存在！");
+		}
+		
+		//判断试卷是否已启用
+		if (testPaper.getStatus().equals(TestPaperStatusEnum.Opened.toValue())) {
+			throw new Exception("此试卷已启用，不可操作！");
+		}
+		
+		//判断试卷是否已经被引用
+		if (this.modelFactoryFacade.getExamFactory().findCountByTestPaper(testPaperId) > 0) {
+			throw new Exception("此试卷已被考试引用，不可操作！");
+		}
+		
+		return testPaper;
+		
+	}
+	
+	/**
+	 * 删除试卷
+	 * @param id 试卷编号
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void removeTestPaper(Long id, Long curManagerId) throws Exception {
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(id, curManagerId);	
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(testPaper.getCreator(), curManagerId);
+		
+		//删除试卷题目
+		this.daoFacade.getTestPaperQuestionDAO().deleteListByTestPaper(id);
+
+		//删除试卷
+		this.daoFacade.getTestPaperDAO().delete(id);
+	}
+	
+	/**
+	 * 选题
+	 * @param testPaperId 试卷编号
+	 * @param series 套数
+	 * @param questionId 题目编号
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void selectQuestion(Long testPaperId, Integer series, Long questionId, Long curManagerId) throws Exception {
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperId, curManagerId);	
+		
+		//获取题目
+		Question question = this.modelFactoryFacade.getQuestionFactory().findById(questionId);
+
+		//判断题目是否存在
+		if (question == null) {
+			throw new Exception("此题目已不存在！");
+		}
+		
+		this.trySelectQuestion(testPaper, series, question);
+	}
+	
+	/**
+	 * 试图选题
+	 * @param testPaper 试卷
+	 * @param series 套数
+	 * @param question 题目
+	 * @throws Exception
+	 */
+	private void trySelectQuestion(TestPaper testPaper, Integer series, Question question) throws Exception {
+		
+		//解析出试卷配置
+		List<TestPaperOption> testPagerOptionList = JSONConvertor.json2List(testPaper.getTestPaperOptions(), TestPaperOption.class);
+		
+		//累计试卷题目分数
+		Double baseScore = 0.0;
+		Boolean existsQuestionType = false;
+		for (TestPaperOption option : testPagerOptionList) {
+			if (option.getQuestionType().equals(question.getQuestionType()) && option.getNumber() > 0) {
+				existsQuestionType = true;
+				baseScore = option.getScore();
+			}
+		}
+		
+		//判断是否可放入此试卷中
+		if (!existsQuestionType) {
+			throw new Exception("此题目的题型与试卷配置不符！");
+		}
+		
+		//判断题目是否重复
+		if (this.modelFactoryFacade.getTestPaperQuestionFactory().findCountByRepeatQuestion(
+				testPaper.getId(),
+				series,
+				QuestionTypeEnum.valueOf(question.getQuestionType()), 
+				question.getName(), 
+				question.getOptions()) > 0) {
+			
+			throw new Exception("题目已重复了！");
+		}
+	
+		//创建记录
+		TestPaperQuestion testPaperQuestion = new TestPaperQuestion();
+		
+		testPaperQuestion.setTestPaperId(testPaper.getId());
+		testPaperQuestion.setQuestionId(question.getId());
+		testPaperQuestion.setSeries(series);
+		testPaperQuestion.setQuestionType(question.getQuestionType());
+		testPaperQuestion.setName(question.getName());
+		testPaperQuestion.setOptions(question.getOptions());
+		testPaperQuestion.setAnswer(question.getAnswer());
+		testPaperQuestion.setDifficulty(question.getDifficulty());
+		testPaperQuestion.setKen(question.getKen());
+		testPaperQuestion.setSortFlag(0);
+				
+		//判断是否忽略题目原有的分数
+		if (testPaper.getCanIgnoreQuestionScore()) {
+			testPaperQuestion.setScore(baseScore);			
+		} else {
+			testPaperQuestion.setScore(question.getScore());
+		}
+		
+		this.daoFacade.getTestPaperQuestionDAO().insert(testPaperQuestion);
+	}
+	
+	/**
+	 * 自动抽题
+	 * @param testPaperId 试卷编号
+	 * @param questionCategoryId 题目分类编号
+	 * @param questionTypeEnum 题型
+	 * @param difficulty 难度
+	 * @param score 分数
+	 * @param ken 知识点
+	 * @param number 数量
+	 * @param series 套数
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void autoSelectQuestionList(Long testPaperId, Long questionCategoryId, QuestionTypeEnum questionTypeEnum, 
+			Integer difficulty, Double score, String ken, Integer number, Integer series, Long curManagerId) throws Exception {
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperId, curManagerId);	
+		
+		//判断是否全套
+		Integer first = 0;
+		Integer last = testPaper.getTotalSeries() - 1;
+		
+		if (series != null) {
+			first =  series;
+			last = series;
+		}
+		
+		//自动从题库中挑题
+		for (int i=first; i<=last; i++) {
+			List<Question> list = this.modelFactoryFacade.getQuestionFactory().findListByAutoSelect(questionCategoryId, questionTypeEnum, 
+					difficulty, score, ken, number);
+			
+			for (Question question : list) {
+				try {
+					this.trySelectQuestion(testPaper, series, question);
+				} catch (Exception ex) {
+					
+				}
+			}
+		}
+	}
+	
+	/**
+	 * 导入题目
+	 * @param testPaperId 试卷编号
+	 * @param series 套数
+	 * @param file 文件
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	@Transactional(rollbackFor=Exception.class)
+	public void importQuestionList(Long testPaperId, Integer series, File file, Long curManagerId) throws Exception {
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperId, curManagerId);	
+
+		//从Excel中解析出题目集
+		List<Question> questionList = QuestionExcelTools.getQuestionList(file);
+		
+		//导入题目
+		for (int i=0; i<questionList.size(); i++) {
+			
+			//获取行号
+			Integer row = QuestionExcelTools.dataRowFirst + i + 1;
+			
+			//当前题目
+			Question question = questionList.get(i);
+			
+			//创建题目
+			try {
+				this.trySelectQuestion(testPaper, series, question);
+			} catch (Exception ex) {
+				throw new Exception("题目校验错误，第" + row + "行出错：" + ex.getMessage());
+			}
+		}
+	}
+	
+	/**
+	 * 导出试卷套数的所有题目到Excel
+	 * @param testPaperId 试卷编号
+	 * @param series 试题套数
+	 * @param curManagerId 当前教师编号
+	 * @return
+	 * @throws IOException
+	 */
+	public InputStream exportQuestionList(Long testPaperId, Integer series, Long curManagerId) throws IOException {
+		
+		//获取试卷套数中的所有题目
+		List<Question> questionList = this.modelFactoryFacade.getTestPaperQuestionFactory().findListByTestPaper_Series(testPaperId, series);
+		
+		//将题目集转换成工作簿
+		HSSFWorkbook workbook = QuestionExcelTools.getWorkbook(questionList);
+		
+		//创建文件数据流
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();   
+		workbook.write(baos);   
+		
+		byte[] ba = baos.toByteArray();   
+		ByteArrayInputStream bais = new ByteArrayInputStream(ba);   
+		
+		return bais;
+	}
+	
+	/**
+	 * 获取试卷摘要
+	 * @param testPaperId 试卷编号
+	 * @param series 套数
+	 * @param curManagerId 当前管理员编号
+	 * @return 试卷摘要
+	 * @throws Exception
+	 */
+	public Map<String, String> getTestPaperSummary(Long testPaperId, Integer series, Long curManagerId) throws Exception {
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperId, curManagerId);	
+		
+		//解析出试卷配置
+		List<TestPaperOption> testPagerOptionList = JSONConvertor.json2List(testPaper.getTestPaperOptions(), TestPaperOption.class);
+		
+		//初始化结果
+		Map<String,String> map = new HashMap<String, String>();
+		
+		//循环处理试卷配置
+		for (TestPaperOption testPaperOption : testPagerOptionList) {
+
+			//存入必修题目的题目数量
+			QuestionTypeEnum questionTypeEnum = QuestionTypeEnum.valueOf(testPaperOption.getQuestionType());
+			map.put(questionTypeEnum.toName() + "_TotalNumber", testPaperOption.getNumber().toString());
+
+			Integer nubmer = this.modelFactoryFacade.getTestPaperQuestionFactory().findCountByQuestionType(testPaperId, series, questionTypeEnum);
+			map.put(questionTypeEnum.toName() + "_SelectedNumber", nubmer.toString());
+		}
+		
+		//存入试卷总分
+		map.put("TotalScore", testPaper.getTotalScore().toString());
+
+		//存入已挑选的题目总分
+		Double selectedScore = this.modelFactoryFacade.getTestPaperQuestionFactory().findSumScoreBySeries(testPaperId, series);
+		map.put("SelectedScore", selectedScore.toString());
+		
+		return map;
+	}
+	
+	/**
+	 * 调整题目
+	 * @param testPaperQuestionId 试卷题目编号
+	 * @param score 分数
+	 * @param sortFlag 排序
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void adjustQuestion(Long testPaperQuestionId, Double score, Integer sortFlag, Long curManagerId) throws Exception {
+		
+		//获取试卷题目
+		TestPaperQuestion testPaperQuestion = this.modelFactoryFacade.getTestPaperQuestionFactory().findById(testPaperQuestionId);
+		
+		//判断试卷题目是否存在
+		if (testPaperQuestion == null) {
+			throw new Exception("您编辑的题目已不存在！");
+		}
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperQuestion.getTestPaperId(), curManagerId);
+		
+		//判断题目分数是否过大
+		if (score.compareTo(testPaper.getTotalScore().doubleValue()) > 0) {
+			throw new Exception("题目分数不可超过试卷总分！");
+		}
+		
+		testPaperQuestion.setScore(score);
+		testPaperQuestion.setSortFlag(sortFlag);
+		
+		this.daoFacade.getTestPaperQuestionDAO().update(testPaperQuestion);
+	}
+	
+	/**
+	 * 删除题目
+	 * @param testPaperQuestionId 试卷题目编号
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void removeQuestion(Long testPaperQuestionId, Long curManagerId) throws Exception {
+		
+		//获取试卷题目
+		TestPaperQuestion testPaperQuestion = this.modelFactoryFacade.getTestPaperQuestionFactory().findById(testPaperQuestionId);
+		
+		//判断试卷题目是否存在
+		if (testPaperQuestion == null) {
+			return;
+		}
+		
+		//校验操作权限，获取试卷记录
+		this.validateTestPaperAction(testPaperQuestion.getTestPaperId(), curManagerId);
+		
+		this.daoFacade.getTestPaperQuestionDAO().delete(testPaperQuestion);
+	}
+	
+	/**
+	 * 校验试卷
+	 * @param testPaperId 试卷编号
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public TestPaper validateTestPaper(Long testPaperId, Long curManagerId) throws Exception {
+	
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperId, curManagerId);	
+		
+		//判断此试卷是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷已不存在!");
+		}
+		
+		//解析出试卷配置
+		List<TestPaperOption> testPagerOptionList = JSONConvertor.json2List(testPaper.getTestPaperOptions(), TestPaperOption.class);
+		
+		//对每套题目进行分析
+		for (int i=0; i<testPaper.getTotalSeries(); i++) {
+			
+			Integer curSeries = i + 1;
+			
+			//循环处理试卷配置
+			for (TestPaperOption testPaperOption : testPagerOptionList) {
+
+				QuestionTypeEnum questionTypeEnum = QuestionTypeEnum.valueOf(testPaperOption.getQuestionType());
+				
+				//获取已选取的题目数量
+				Integer selectedNubmer = this.modelFactoryFacade.getTestPaperQuestionFactory().findCountByQuestionType(testPaperId, curSeries, questionTypeEnum);
+				
+				if (testPaperOption.getNumber().intValue() != selectedNubmer.intValue()) {
+					throw new Exception("第" + curSeries + "套中的" + questionTypeEnum.toName() + "的数量与试卷配置不一致！");
+				}
+			}
+			
+			//获取已挑选的题目总分
+			Double selectedScore = this.modelFactoryFacade.getTestPaperQuestionFactory().findSumScoreBySeries(testPaperId, curSeries);
+			
+			//判断总分数是否符合
+			if (selectedScore.doubleValue() != testPaper.getTotalScore().doubleValue()) {
+				throw new Exception("第" + curSeries + "套中的题目总分与试卷配置不一致！");
+			}
+		}
+		
+		return testPaper;
+	}
+
+	/**
+	 * 导入试卷
+	 * @param file 文件
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void importTestPaper(File file, Long curManagerId) throws Exception {
+		
+		//获取文件内容
+		String data = FileUtility.readTXT(file, "UTF-8");
+		
+		//进行解压缩、解密处理
+		String json = this.systemService.decryptData(data);
+		
+		//获取试卷对象
+		Map<String, Object> dataMap = JSONConvertor.json2Map(json);
+		TestPaper testPaper = (TestPaper)JSONConvertor.json2Bean(HexStrUtility.decode((String)dataMap.get("TestPaper")), TestPaper.class);
+		List<TestPaperQuestion> list = (List<TestPaperQuestion>)JSONConvertor.json2List(HexStrUtility.decode((String)dataMap.get("TestPaperQuestionList")), TestPaperQuestion.class);
+		
+		//判断是否已存在此试卷，通过TestPaperKey判断
+		if (this.modelFactoryFacade.getTestPaperFactory().findByTestPaperKey(testPaper.getTestPaperKey()) != null ) {
+			throw new Exception("已存在相同标示的试卷!");
+		}
+		
+		//创建试卷记录
+		testPaper.setId(null);
+		testPaper.setCreatedTime(DateUtility.getCurDate());
+		testPaper.setCreator(curManagerId);
+		
+		this.daoFacade.getTestPaperDAO().insert(testPaper);
+		
+		//创建试卷题目记录
+		for (TestPaperQuestion testPaperQuestion : list) {
+			
+			testPaperQuestion.setId(null);
+			testPaperQuestion.setTestPaperId(testPaper.getId());
+			
+			this.daoFacade.getTestPaperQuestionDAO().insert(testPaperQuestion);
+		}
+	}
+	
+	/**
+	 * 导出试卷
+	 * @param testPaperId 试卷编号
+	 * @param curManagerId 当前管理员编号
+	 * @return
+	 * @throws Exception
+	 */
+	public String exportTestPaper(Long testPaperId, Long curManagerId) throws Exception {
+		
+		//校验操作权限，获取试卷记录
+		TestPaper testPaper = this.validateTestPaperAction(testPaperId, curManagerId);	
+		
+		//判断此试卷是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷已不存在!");
+		}
+
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(testPaper.getCreator(), curManagerId);
+		
+		//获取试卷题目列表
+		List<TestPaperQuestion> list = this.modelFactoryFacade.getTestPaperQuestionFactory().findListByTestPaper(testPaperId);
+		
+		//创建文件内容
+		Map<String, Object> dataMap = new HashMap<String, Object>();
+		dataMap.put("TestPaper", HexStrUtility.encode(JSONConvertor.bean2Json(testPaper)));
+		dataMap.put("TestPaperQuestionList", HexStrUtility.encode(JSONConvertor.list2Json(list)));
+		
+		String json = JSONConvertor.bean2Json(dataMap);
+		
+		//加密压缩
+		json = this.systemService.encryptData(json);
+		
+		return json;
+	}
+	
+	/**
+	 * 加密试题答案
+	 * @param testPaperQuestion 试题
+	 */
+	public void encryptAnswer(TestPaperQuestion testPaperQuestion) {
+		
+		Long id = testPaperQuestion.getId();
+		String answer = testPaperQuestion.getAnswer();
+		
+		Long temp = id%9;
+		Integer remainder = temp.intValue();
+		
+		char[] answerArray = answer.toCharArray();
+		for (int i=0; i<answerArray.length; i++) {
+			answerArray[i] = (char)((int)answerArray[i] + remainder);
+			remainder ++ ;
+		}
+		
+		testPaperQuestion.setAnswer(new String(answerArray));
+	}
+	
+	/**
+	 * 获取导出用的word文件名称
+	 * @param testPaperId 试卷编号
+	 * @param series 套数
+	 * @return
+	 * @throws Exception
+	 */
+	public String getWordFileNameByExport(Long testPaperId, Integer series) throws Exception {
+		
+		//获取试卷记录
+		TestPaper testPaper = this.modelFactoryFacade.getTestPaperFactory().findById(testPaperId);	
+		
+		//判断此试卷是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷已不存在!");
+		}
+		
+		return "【" + testPaper.getName() + "】第" + series + "套试卷.doc";
+	}
+	
+	/**
+	 * 导出试卷题目导出到Word中
+	 * @param testPaperId 试卷编号
+	 * @param series 套数
+	 * @param curManagerId 教师编号
+	 * @return
+	 * @throws IOException
+	 */
+	public InputStream exportTestPaperToWord(Long testPaperId, Integer series, Long curManagerId) throws Exception {
+		
+		//获取试卷记录
+		TestPaper testPaper = this.modelFactoryFacade.getTestPaperFactory().findById(testPaperId);	
+		
+		//判断此试卷是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷已不存在!");
+		}
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(testPaper.getCreator(), curManagerId);
+		
+		//获取此套数中的试卷题目列表
+		List<TestPaperQuestion> list = this.modelFactoryFacade.getTestPaperQuestionFactory().findListByTestPaperId_Series(testPaperId, series);
+		
+		return TestPaperWordTools.getWord(testPaper, series, list);
+	}
+
+}

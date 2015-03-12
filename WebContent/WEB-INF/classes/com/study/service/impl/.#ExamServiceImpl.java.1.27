@@ -1,0 +1,908 @@
+package com.study.service.impl;
+
+import java.io.File;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.stereotype.Service;
+import org.tuckey.web.filters.urlrewrite.utils.StringUtils;
+
+import com.examserver.model.EsExamUser;
+import com.study.dao.DAOFacade;
+import com.study.enums.ExamModeEnum;
+import com.study.enums.ExamServerStatusEnum;
+import com.study.enums.ExamStatusEnum;
+import com.study.enums.QuestionFetchTypeEnum;
+import com.study.enums.SysAccessTypeEnum;
+import com.study.enums.TimerModeEnum;
+import com.study.model.Exam;
+import com.study.model.ExamServer;
+import com.study.model.TestPaper;
+import com.study.model.TestPaperQuestion;
+import com.study.model.factory.ModelFactoryFacade;
+import com.study.service.ExamServerService;
+import com.study.service.ExamService;
+import com.study.service.ExamUserService;
+import com.study.service.ManagerService;
+import com.study.service.OrganService;
+import com.study.service.SystemService;
+import com.study.service.TestPaperService;
+import com.study.utility.ActionPostUtility;
+import com.study.utility.DateUtility;
+import com.study.utility.FileUtility;
+import com.study.utility.HexStrUtility;
+import com.study.utility.JSONConvertor;
+import com.study.utility.SystemUtility;
+
+/**
+ * 考试业务接口实现类
+ */
+@Service
+public class ExamServiceImpl implements ExamService {
+
+	/**
+	 * 日志记录器
+	 */
+	private static Log logger = LogFactory.getLog(ExamServiceImpl.class);
+	
+	/**
+	 * 数据操作门面
+	 */
+	@Resource
+	private DAOFacade daoFacade;
+	
+	/**
+	 * 数据工厂门面 
+	 */
+	@Resource
+	private ModelFactoryFacade modelFactoryFacade;
+	
+	/**
+	 * 教师业务接口 
+	 */
+	@Resource
+	private ManagerService managerService;
+	
+	/**
+	 * 系统业务接口 
+	 */
+	@Resource
+	private SystemService systemService;
+	
+	/**
+	 * 试卷业务接口 
+	 */
+	@Resource
+	private TestPaperService testPaperService;
+	
+	/**
+	 * 考生业务接口 
+	 */
+	@Resource
+	private ExamUserService examUserService;
+	
+	/**
+	 * 考试服务器业务接口 
+	 */
+	@Resource
+	private ExamServerService examServerService;
+	
+	/**
+	 * 单位业务接口 
+	 */
+	@Resource
+	private OrganService organService;
+	
+	/**
+	 * 校验考试记录
+	 * @param exam 考试
+	 * @param curManagerId 当前教师编号
+	 * @throws Exception 
+	 */
+	private void validateExam(Exam exam, Long curManagerId) throws Exception {
+		
+		//判断是否选择了职务级别
+		if (exam.getCanMatchDutyRank() && StringUtils.isBlank(exam.getDutyRank())) {
+			throw new Exception("请选择职务级别");
+		}
+		
+		//判断是否选择了行业
+		if (exam.getCanMatchTrade() && StringUtils.isBlank(exam.getTrade())) {
+			throw new Exception("请选择行业");
+		}
+		
+		//判断是否输入了考试时长
+		if (exam.getTimerMode().equals(TimerModeEnum.Limit.toValue())) {
+			if (exam.getTimerLimit() == null) {
+				throw new Exception("请输入考试时长！");
+			}
+			
+			if (exam.getTimerLimit().intValue() <= 0) {
+				throw new Exception("请正确输入考试时长！");
+			}
+		}
+		
+		//判断是否填写了考试
+		if (StringUtils.isBlank(exam.getName())) {
+			throw new Exception("需要填写考试名称！");
+		}
+		
+		//判断匹配职务级别
+		if (exam.getCanMatchDutyRank()) {
+			if (StringUtils.isBlank(exam.getDutyRank())) {
+				throw new Exception("需要选择职务级别！");
+			}
+		}
+		
+		//判断匹配行业
+		if (exam.getCanMatchTrade()) {
+			if (StringUtils.isBlank(exam.getTrade())) {
+				throw new Exception("需要选择行业！");
+			}
+		}
+		
+		//判断考试计时，考试答题时间必修大于0 
+		if(exam.getTimerMode().equals(TimerModeEnum.Limit.toValue())){
+			if(exam.getTimerLimit().compareTo(0) <= 0){
+				throw new Exception("考试计时的模式下，考试时间必须是大于0的整数!");
+			}
+		}
+		
+		//判断考试计时模式是否与统一交卷是否冲突
+		if (exam.getTimerMode().equals(TimerModeEnum.None.toValue()) && exam.getCanLimitCommitTime()) {
+			throw new Exception("只有在考试计时的模式下，才能设置统一交卷方式!");
+		}
+		
+		//判断考试开考时段是否合理
+		if (exam.getCanLimitValidTime()) {
+			
+			if (exam.getValidFirstTime() == null) {
+				throw new Exception("需填写开考进场时间！");
+			}
+			
+			if (exam.getCanLimitCommitTime()) {
+				exam.setValidLastTime(null);
+			} else {
+				if (exam.getValidLastTime() == null) {
+					throw new Exception("需填写考试关闭时间！");
+				}
+				if (exam.getValidFirstTime().compareTo(exam.getValidLastTime()) >= 0) {
+					throw new Exception("考试开始时间必须小于结束时间！");
+				}
+			}
+			
+			//清除掉秒
+			if (exam.getValidFirstTime() != null) {
+				exam.setValidFirstTime(DateUtility.cancelSenconds(exam.getValidFirstTime()));
+			}
+			
+			if (exam.getValidLastTime() != null) {
+				exam.setValidLastTime(DateUtility.cancelSenconds(exam.getValidLastTime()));
+			}
+		} else {
+			exam.setValidFirstTime(null);
+			exam.setValidLastTime(null);
+		}
+		
+		//判断是否选择了试卷
+		if (exam.getTestPaperId() == null) {
+			throw new Exception("需选择考试用的试卷！");
+		}
+		
+		//校验试卷
+		TestPaper testPaper = this.testPaperService.validateTestPaper(exam.getTestPaperId(), curManagerId);
+		
+		//判断试卷题目套数是否合理
+		if (exam.getQuestionFetchType().equals(QuestionFetchTypeEnum.Random.toValue()) && testPaper.getTotalSeries().intValue() <= 1) {
+			throw new Exception("您选择的试卷的题目套数仅有1套，无法随机分发试卷！");
+		}
+	}
+	
+	/**
+	 * 创建考试
+	 * @param name 名称
+	 * @param description 描述 
+	 * @param examCode 代号
+	 * @param examModeEnum 考试模式
+	 * @param category 分类
+	 * @param testPaperId 试卷编号
+	 * @param questionFetchTypeEnum 分发方式
+	 * @param validFirstTime 起始时间
+	 * @param validLastTime 结束时间
+	 * @param timerModeEnum 计时模式
+	 * @param timerLimit 时间限制
+	 * @param canAllowAllUser 是否允许所有学员
+	 * @param canAllowMultiJoin 是否允许学员在考试时间内多次参加考试
+	 * @param canCourseStudyLimit 是否必须完成必修课
+	 * @param canKeepSecretScore 是否分数保密
+	 * @param canQueryAnswer 是否可以查询答卷
+	 * @param canLimitValidTime 是否限制考场试卷
+	 * @param canLimitCommitTime 是否要求统一交卷
+	 * @param canMatchDutyRank 是否匹配职务级别
+	 * @param dutyRank 职务级别
+	 * @param canMatchTrade 是否匹配行业
+	 * @param trade 行业
+	 * @param curManagerId 当前管理员编号
+	 * @return 考试
+	 * @throws Exception
+	 */
+	public Exam createExam(String name, String description, String examCode, ExamModeEnum examModeEnum, String category, 
+			Long testPaperId, QuestionFetchTypeEnum questionFetchTypeEnum, Date validFirstTime, Date validLastTime, 
+			TimerModeEnum timerModeEnum, Integer timerLimit, Boolean canAllowAllUser, Boolean canAllowMultiJoin, Boolean canCourseStudyLimit, 
+			Boolean canKeepSecretScore, Boolean canQueryAnswer, Boolean canLimitValidTime,
+			Boolean canLimitCommitTime, Boolean canMatchDutyRank, String dutyRank, Boolean canMatchTrade, 
+			String trade, Long curManagerId) throws Exception {
+	
+		//创建考试
+		Exam exam = new Exam();
+		
+		exam.setName(name);
+		exam.setDescription(description);
+		exam.setExamCode(examCode);
+		exam.setExamMode(examModeEnum.toValue());
+		exam.setExamKey(SystemUtility.createUUID());
+		exam.setEsExamKey(SystemUtility.createUUID());
+		exam.setCategory(category);
+		exam.setTestPaperId(testPaperId);
+		exam.setQuestionFetchType(questionFetchTypeEnum.toValue());
+		exam.setValidFirstTime(validFirstTime);
+		exam.setValidLastTime(validLastTime);
+		exam.setTimerMode(timerModeEnum.toValue());
+		exam.setTimerLimit(timerLimit);
+		exam.setUserJoinedData("");
+		exam.setJoinedOrgans("");
+		exam.setCanAllowMultiJoin(canAllowMultiJoin);
+		exam.setCanCourseStudyLimit(canCourseStudyLimit);
+		exam.setCanKeepSecretScore(canKeepSecretScore);
+		exam.setCanQueryAnswer(canQueryAnswer);
+		exam.setCanLimitValidTime(canLimitValidTime);
+		exam.setCanLimitCommitTime(canLimitCommitTime);
+		exam.setCanMatchDutyRank(canMatchDutyRank);
+		exam.setCanAllowAllUser(canAllowAllUser);
+		exam.setDutyRank(dutyRank);
+		exam.setCanMatchTrade(canMatchTrade);
+		exam.setTrade(trade);
+		exam.setStatus(ExamStatusEnum.Created.toValue());
+		exam.setCreatedTime(DateUtility.getCurDate());
+		exam.setCreator(curManagerId);
+		
+		if (!canMatchDutyRank) {
+			exam.setDutyRank("");
+		}
+		if (!canMatchTrade) {
+			exam.setTrade("");
+		}
+		if (!exam.getTimerMode().equals(TimerModeEnum.Limit.toValue())) {
+			exam.setTimerLimit(0);
+		}
+		
+		//校验考试记录
+		this.validateExam(exam, curManagerId);
+		
+		//创建考试记录
+		this.daoFacade.getExamDAO().insert(exam);
+		
+		return exam;
+	}
+
+	/**
+	 * @param id
+	 * @param name 名称
+	 * @param description 描述 
+	 * @param category 分类
+	 * @param testPaperId 试卷编号
+	 * @param questionFetchTypeEnum 分发方式
+	 * @param validFirstTime 起始时间
+	 * @param validLastTime 结束时间
+	 * @param timerModeEnum 计时模式
+	 * @param timerLimit 时间限制
+	 * @param canAllowAllUser 是否允许所有学员
+	 * @param canAllowMultiJoin 是否允许学员在考试时间内多次参加考试
+	 * @param canCourseStudyLimit 是否必须完成必修课
+	 * @param canKeepSecretScore 是否分数保密
+	 * @param canQueryAnswer 是否可以查询答卷
+	 * @param canLimitValidTime 是否限制考场试卷
+	 * @param canLimitCommitTime 是否要求统一交卷
+	 * @param canMatchDutyRank 是否匹配职务级别
+	 * @param dutyRank 职务级别
+	 * @param canMatchTrade 是否匹配行业
+	 * @param trade 行业
+	 * @param curManagerId 当前管理员编号
+	 * @return
+	 * @throws Exception
+	 */
+	public Exam modifyExam(Long id, String name, String description, String category, 
+			Long testPaperId, QuestionFetchTypeEnum questionFetchTypeEnum, Date validFirstTime, Date validLastTime, 
+			TimerModeEnum timerModeEnum, Integer timerLimit, Boolean canAllowAllUser, Boolean canAllowMultiJoin, Boolean canCourseStudyLimit, 
+			Boolean canKeepSecretScore, Boolean canQueryAnswer, Boolean canLimitValidTime,
+			Boolean canLimitCommitTime, Boolean canMatchDutyRank, String dutyRank, Boolean canMatchTrade, 
+			String trade, Long curManagerId) throws Exception {
+	
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在！");
+		}
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(exam.getCreator(), curManagerId);
+		
+		//校验考试状态，判断是否可以修改
+		if (exam.getStatus() != ExamStatusEnum.Created.toValue() && exam.getStatus() != ExamStatusEnum.Destroyed.toValue()) {
+			throw new Exception("此考试已部署或已归档，不可修改！");
+		}
+		
+		//修改考试
+		exam.setName(name);
+		exam.setDescription(description);
+		exam.setCategory(category);
+		exam.setTestPaperId(testPaperId);
+		exam.setQuestionFetchType(questionFetchTypeEnum.toValue());
+		exam.setValidFirstTime(validFirstTime);
+		exam.setValidLastTime(validLastTime);
+		exam.setTimerMode(timerModeEnum.toValue());
+		exam.setTimerLimit(timerLimit);
+		exam.setCanAllowAllUser(canAllowAllUser);
+		exam.setCanAllowMultiJoin(canAllowMultiJoin);
+		exam.setCanCourseStudyLimit(canCourseStudyLimit);
+		exam.setCanKeepSecretScore(canKeepSecretScore);
+		exam.setCanQueryAnswer(canQueryAnswer);
+		exam.setCanLimitValidTime(canLimitValidTime);
+		exam.setCanLimitCommitTime(canLimitCommitTime);
+		exam.setCanMatchDutyRank(canMatchDutyRank);
+		exam.setCanAllowAllUser(canAllowAllUser);
+		exam.setDutyRank(dutyRank);
+		exam.setCanMatchTrade(canMatchTrade);
+		exam.setTrade(trade);
+		
+		if (!canMatchDutyRank) {
+			exam.setDutyRank("");
+		}
+		if (!canMatchTrade) {
+			exam.setTrade("");
+		}
+		if (!exam.getTimerMode().equals(TimerModeEnum.Limit.toValue())) {
+			exam.setTimerLimit(0);
+		}
+		
+		//校验考试记录
+		this.validateExam(exam, curManagerId);
+		
+		//修改考试记录
+		this.daoFacade.getExamDAO().update(exam);
+		
+		return exam;
+	}
+	
+	/**
+	 * 修改考试学员范围
+	 * @param id 编号
+	 * @param userJoinedData 修改考试学员范围
+	 * @param curManagerId 当前教师编号
+	 * @return
+	 * @throws Exception
+	 */
+	public Exam modifyExamUserJoinedData(Long id, String userJoinedData, Long curManagerId) throws Exception {
+	
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断此考试是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在!");
+		}
+		
+		//校验考试状态，判断是否可以修改
+		if (exam.getStatus() != ExamStatusEnum.Created.toValue() && exam.getStatus() != ExamStatusEnum.Destroyed.toValue()) {
+			throw new Exception("此考试已部署或已归档，不可修改！");
+		}
+		
+		//判断此考试是否允许所有学员学习
+		if (exam.getCanAllowAllUser()) {
+			throw new Exception("此考试已经允许所有学员学习了!");
+		}
+		
+		//判断此考试已启用
+//		if (!exam.getStatus().equals(ExamStatusEnum.Closed.toValue())) {
+//			throw new Exception("此考试已启动，不可在变更学员范围!");
+//		}
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(exam.getCreator(), curManagerId);
+		
+		//析出参与的单位编号列表
+		String joinedOrgans = this.organService.extractJoinedOrgans(userJoinedData);
+		
+		//修改课程学员范围
+		exam.setUserJoinedData(userJoinedData);
+		exam.setJoinedOrgans(joinedOrgans);
+		
+		this.daoFacade.getExamDAO().update(exam);
+		
+		return exam;
+	}
+	
+	/**
+	 * 删除考试
+	 * @param id 编号
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void removeExam(Long id, Long curManagerId) throws Exception {
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在！");
+		}
+		
+		//校验考试状态，判断是否可以修改
+		if (exam.getStatus() != ExamStatusEnum.Created.toValue() && 
+				exam.getStatus() != ExamStatusEnum.Deployed.toValue() &&
+				exam.getStatus() != ExamStatusEnum.Archived.toValue()) {
+			throw new Exception("此考试已部署，不可删除！");
+		}
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(exam.getCreator(), curManagerId);
+		
+		//删除考生列表
+		this.daoFacade.getExamUserDAO().deleteListByExam(id);
+		
+		//删除记录
+		this.daoFacade.getExamDAO().delete(id);
+	}
+	
+	/**
+	 * 导入考试
+	 * @param file 文件
+	 * @param curManagerId 当前管理员编号
+	 * @throws Exception
+	 */
+	public void importExam(File file, Long curManagerId) throws Exception {
+		
+		//获取文件内容
+		String data = FileUtility.readTXT(file, "UTF-8");
+		
+		//进行解压缩、解密处理
+		String json = this.systemService.decryptData(data);
+		
+		//获取试卷对象
+		Map<String, Object> dataMap = JSONConvertor.json2Map(json);
+		Exam exam = (Exam)JSONConvertor.json2Bean(HexStrUtility.decode((String)dataMap.get("Exam")), Exam.class);
+		TestPaper testPaper = (TestPaper)JSONConvertor.json2Bean(HexStrUtility.decode((String)dataMap.get("TestPaper")), TestPaper.class);
+		List<TestPaperQuestion> list = (List<TestPaperQuestion>)JSONConvertor.json2List(HexStrUtility.decode((String)dataMap.get("TestPaperQuestionList")), TestPaperQuestion.class);
+		
+		//判断是否已存在此考试，通过ExamKey判断
+		if (this.modelFactoryFacade.getExamFactory().findByExamKey(exam.getExamKey()) != null ) {
+			throw new Exception("已存在相同标示的试卷!");
+		}
+		
+		//判断是否已存在此试卷，通过TestPaperKey判断
+		if (this.modelFactoryFacade.getTestPaperFactory().findByTestPaperKey(testPaper.getTestPaperKey()) != null ) {
+			throw new Exception("已存在相同标示的试卷!");
+		}
+		
+		//创建试卷记录
+		testPaper.setId(null);
+		testPaper.setCreatedTime(DateUtility.getCurDate());
+		testPaper.setCreator(curManagerId);
+		
+		this.daoFacade.getTestPaperDAO().insert(testPaper);
+		
+		//创建试卷题目记录
+		for (TestPaperQuestion testPaperQuestion : list) {
+			
+			testPaperQuestion.setId(null);
+			testPaperQuestion.setTestPaperId(testPaper.getId());
+			
+			this.daoFacade.getTestPaperQuestionDAO().insert(testPaperQuestion);
+		}
+
+		//创建考试记录
+		exam.setId(null);
+		exam.setTestPaperId(testPaper.getId());
+		exam.setEsExamKey(SystemUtility.createUUID());
+		exam.setStatus(ExamStatusEnum.Created.toValue());
+		exam.setCreatedTime(DateUtility.getCurDate());
+		exam.setCreator(curManagerId);
+		
+		this.daoFacade.getExamDAO().insert(exam);
+	}
+	
+	/**
+	 * 导出考试
+	 * @param examId 考试编号
+	 * @param curManagerId 当前管理员编号
+	 * @return
+	 * @throws Exception
+	 */
+	public String exportExam(Long id, Long curManagerId) throws Exception {
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在！");
+		}
+		
+		//校验记录编辑权限
+		this.managerService.validateManagerDataAccess(exam.getCreator(), curManagerId);
+
+		//获取试卷
+		TestPaper testPaper = this.modelFactoryFacade.getTestPaperFactory().findById(exam.getTestPaperId());	
+		
+		//判断此试卷是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷已不存在!");
+		}
+		
+		//获取试卷题目列表
+		List<TestPaperQuestion> list = this.modelFactoryFacade.getTestPaperQuestionFactory().findListByTestPaper(exam.getTestPaperId());
+		
+		//创建文件内容
+		Map<String, Object> dataMap = new HashMap<String, Object>();
+		dataMap.put("Exam", HexStrUtility.encode(JSONConvertor.bean2Json(exam)));
+		dataMap.put("TestPaper", HexStrUtility.encode(JSONConvertor.bean2Json(testPaper)));
+		dataMap.put("TestPaperQuestionList", HexStrUtility.encode(JSONConvertor.list2Json(list)));
+		
+		String json = JSONConvertor.bean2Json(dataMap);
+		
+		//加密压缩
+		json = this.systemService.encryptData(json);
+		
+		return json;
+	}
+	
+	/**
+	 * 部署考试
+	 * @param id 考试编号
+	 * @param mainServerUrl 主服务器链接
+	 * @param managerId 教师编号
+	 * @throws Exception
+	 */
+	public void deployExam(Long id, String mainServerUrl, Long managerId) throws Exception {
+	
+		//校验教师权限
+		this.managerService.validateSysAccess(managerId, SysAccessTypeEnum.ExamMonitor);
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断此考试是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在!");
+		}
+		
+		//校验考试状态，判断是否可以修改
+		if (exam.getStatus() != ExamStatusEnum.Created.toValue() && exam.getStatus() != ExamStatusEnum.Destroyed.toValue()) {
+			throw new Exception("此考试已部署，不可再次部署！");
+		}
+		
+		//获取试卷
+		TestPaper testPaper = this.modelFactoryFacade.getTestPaperFactory().findById(exam.getTestPaperId());	
+		
+		//判断此试卷是否存在
+		if (testPaper == null) {
+			throw new Exception("此试卷已不存在!");
+		}
+		
+		//获取试卷题目列表
+		List<TestPaperQuestion> testPaperQuestionList = this.modelFactoryFacade.getTestPaperQuestionFactory().findListByTestPaper(exam.getTestPaperId());
+		
+		//加密题目答案
+		for (TestPaperQuestion testPaperQuestion : testPaperQuestionList) {
+			this.testPaperService.encryptAnswer(testPaperQuestion);
+		}
+		
+		//设置主服务器信息
+		Map<String, String> mainServerDataMap = new HashMap<String, String>();
+		mainServerDataMap.put("MainServerName", this.systemService.getServerName());
+		mainServerDataMap.put("MainServerUrl", mainServerUrl);
+
+		//设置参数
+		String mainServerData = JSONConvertor.map2Json(mainServerDataMap);
+		String esExamKey = exam.getEsExamKey();
+		String examData = JSONConvertor.bean2Json(exam);
+		String testPaperData = JSONConvertor.bean2Json(testPaper);
+		String testPaperQuestionListData = JSONConvertor.list2Json(testPaperQuestionList);
+			
+		//获取已启动的考试服务器列表
+		List<ExamServer> examServerList = this.modelFactoryFacade.getExamServerFactory().findListByStatus(ExamServerStatusEnum.Opened);
+		
+		//检查是否有已启动的服务器
+		if (examServerList.size() == 0) {
+			throw new Exception("未发现已启动的考试服务器");
+		}
+		
+		//检查考试服务器是否正常
+		this.examServerService.testExamServerList(examServerList);
+
+		//部署时清空此考试的所有考生记录(用于再次部署）
+		this.daoFacade.getExamUserDataDAO().deleteListByExam(id);
+		this.daoFacade.getExamUserDAO().deleteListByExam(id);
+		
+		//按考试服务器列表创建考生
+		this.examUserService.createExamUserList(id, examServerList, managerId);
+		
+		//给考试服务器发送部署请求
+		for (ExamServer examServer : examServerList) {
+			
+			//按考试服务器获取考生列表
+			List<EsExamUser> esExamUserList = this.examUserService.getEsExamUserListByExamServer(exam, examServer);
+			
+			//将考生列表转换成JSON
+			String esExamUserListData = JSONConvertor.list2Json(esExamUserList);
+
+			//发送请求
+			try {
+				String url = examServer.getDirectUrl() + "/EsExam/deployExam.action";
+				ActionPostUtility.post(url)
+					.setParameter("esExamKey", esExamKey)
+					.setParameter("mainServerData", mainServerData)
+					.setParameter("examName", exam.getName())
+					.setParameter("examData", examData)
+					.setParameter("testPaperData", testPaperData)
+					.setParameter("testPaperQuestionListData", testPaperQuestionListData)
+					.setParameter("esExamUserListData", esExamUserListData)
+					.exec();
+			} catch (Exception ex) {
+				throw new Exception("部署【" + examServer.getName() + "】考试服务器异常！ " + ex.getMessage());
+			}
+		}
+		
+		//修改考试状态及其他参数
+		exam.setStatus(ExamStatusEnum.Deployed.toValue());
+		this.daoFacade.getExamDAO().update(exam);
+	}
+	
+	/**
+	 * 启动考试
+	 * @param id 考试编号
+	 * @param managerId 教师编号
+	 * @throws Exception
+	 */
+	public void openExam(Long id, Long managerId) throws Exception {
+	
+		//校验教师权限
+		this.managerService.validateSysAccess(managerId, SysAccessTypeEnum.ExamMonitor);
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断此考试是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在!");
+		}
+		
+		//TODO TEST
+//		//校验考试状态，判断是否可以启动
+//		if (exam.getStatus() != ExamStatusEnum.Deployed.toValue()) {
+//			throw new Exception("此考试尚未部署或已启动过，不可再次启动！");
+//		}
+		
+		//获取已启动的考试服务器列表
+		List<ExamServer> examServerList = this.modelFactoryFacade.getExamServerFactory().findListByStatus(ExamServerStatusEnum.Opened);
+		
+		//检查是否有已启动的服务器
+		if (examServerList.size() == 0) {
+			throw new Exception("未发现已启动的考试服务器");
+		}
+		
+		//检查考试服务器是否正常
+		this.examServerService.testExamServerList(examServerList);
+
+		//给考试服务器发送启动请求
+		for (ExamServer examServer : examServerList) {
+			
+			//发送请求
+			try {
+				String url = examServer.getDirectUrl() + "/EsExam/openExam.action";
+				ActionPostUtility.post(url)
+					.setParameter("esExamKey", exam.getEsExamKey())
+					.exec();
+			} catch (Exception ex) {
+				throw new Exception("启动【" + examServer.getName() + "】考试服务器异常！ " + ex.getMessage());
+			}
+		}
+
+		//修改考试状态及其他参数
+		exam.setStatus(ExamStatusEnum.Opened.toValue());
+		this.daoFacade.getExamDAO().update(exam);
+	}
+	
+	/**
+	 * 停止考试
+	 * @param id 考试编号
+	 * @param managerId 教师编号
+	 * @throws Exception
+	 */
+	public void closeExam(Long id, Long managerId) throws Exception {
+	
+		//校验教师权限
+		this.managerService.validateSysAccess(managerId, SysAccessTypeEnum.ExamMonitor);
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断此考试是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在!");
+		}
+		
+		//校验考试状态，判断是否可以停止
+		if (exam.getStatus() != ExamStatusEnum.Opened.toValue()) {
+			throw new Exception("此考试尚未启动或启动成功，不可停止！");
+		}
+		
+		//获取已启动的考试服务器列表
+		List<ExamServer> examServerList = this.modelFactoryFacade.getExamServerFactory().findListByStatus(ExamServerStatusEnum.Opened);
+		
+		//检查是否有已启动的服务器
+		if (examServerList.size() == 0) {
+			throw new Exception("未发现已启动的考试服务器");
+		}
+		
+		//检查考试服务器是否正常
+		this.examServerService.testExamServerList(examServerList);
+
+		//给考试服务器发送启动请求
+		for (ExamServer examServer : examServerList) {
+			
+			//发送请求
+			try {
+				String url = examServer.getDirectUrl() + "/EsExam/closeExam.action";
+				ActionPostUtility.post(url)
+					.setParameter("esExamKey", exam.getEsExamKey())
+					.exec();
+			} catch (Exception ex) {
+				throw new Exception("停止【" + examServer.getName() + "】考试服务器异常！ " + ex.getMessage());
+			}
+		}
+
+		//修改考试状态及其他参数
+		exam.setStatus(ExamStatusEnum.Closed.toValue());
+		this.daoFacade.getExamDAO().update(exam);
+	}
+	
+	/**
+	 * 汇总考试成绩
+	 * @param id 考试编号
+	 * @param managerId 教师编号
+	 * @throws Exception
+	 */
+	public void gatherExam(Long id, Long managerId) throws Exception {
+	
+		//校验教师权限
+		this.managerService.validateSysAccess(managerId, SysAccessTypeEnum.ExamMonitor);
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断此考试是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在!");
+		}
+		
+		//校验考试状态，判断是否可以汇总成绩
+		if (exam.getExamMode().equals(ExamModeEnum.Together.toValue())) {
+			if (exam.getStatus() != ExamStatusEnum.Closed.toValue()) {
+				throw new Exception("此考试尚未停止，不可汇总成绩！");
+			}
+		} else {
+			throw new Exception("此考试属于分散考试，不需要手动汇总成绩！");
+		}
+		
+		//获取已启动的考试服务器列表
+		List<ExamServer> examServerList = this.modelFactoryFacade.getExamServerFactory().findListByStatus(ExamServerStatusEnum.Opened);
+		
+		//检查是否有已启动的服务器
+		if (examServerList.size() == 0) {
+			throw new Exception("未发现已启动的考试服务器");
+		}
+		
+		//检查考试服务器是否正常
+		this.examServerService.testExamServerList(examServerList);
+
+		//给考试服务器发送启动请求
+		for (ExamServer examServer : examServerList) {
+			
+			//发送请求
+			try {
+				String url = examServer.getDirectUrl() + "/EsExam/gatherExam.action";
+				List list = ActionPostUtility.post(url)
+					.setParameter("esExamKey", exam.getEsExamKey())
+					.dataList(EsExamUser.class);
+				this.examUserService.gatherExamUserList(exam, (List<EsExamUser>)list);
+			} catch (Exception ex) {
+				throw new Exception("汇总【" + examServer.getName() + "】考试服务器成绩异常！ " + ex.getMessage());
+			}
+		}
+
+		//修改考试状态及其他参数
+		exam.setStatus(ExamStatusEnum.Gathered.toValue());
+		this.daoFacade.getExamDAO().update(exam);
+	}
+	
+	/**
+	 * 清除考试
+	 * @param id 考试编号
+	 * @param managerId 教师编号
+	 * @throws Exception
+	 */
+	public void destroyExam(Long id, Long managerId) throws Exception {
+	
+		//校验教师权限
+		this.managerService.validateSysAccess(managerId, SysAccessTypeEnum.ExamMonitor);
+		
+		//获取考试
+		Exam exam = this.modelFactoryFacade.getExamFactory().findById(id);
+		
+		//判断此考试是否存在
+		if (exam == null) {
+			throw new Exception("此考试已不存在!");
+		}
+		
+		//判断是否已经启动
+		if (exam.getStatus() == ExamStatusEnum.Opened.toValue()) {
+			throw new Exception("此考试已启动，不可清除部署！");
+		}
+		
+		//判断是否已经停止
+		if (exam.getStatus() == ExamStatusEnum.Closed.toValue()) {
+			if (exam.getExamMode().equals(ExamModeEnum.Together.toValue())) {
+				throw new Exception("此考试已停止但未汇总成绩，不可清除部署！");
+			}
+		}
+		
+		//判断是否已经清除
+		if (exam.getStatus() == ExamStatusEnum.Destroyed.toValue()) {
+			throw new Exception("此考试早已清除部署，不可再次操作！");
+		}
+		
+		//判断是否已经清除
+		if (exam.getStatus() == ExamStatusEnum.Archived.toValue()) {
+			throw new Exception("此考试归档，不可清除部署！");
+		}
+		
+		//获取已启动的考试服务器列表
+		List<ExamServer> examServerList = this.modelFactoryFacade.getExamServerFactory().findListByStatus(ExamServerStatusEnum.Opened);
+		
+		//检查是否有已启动的服务器
+		if (examServerList.size() == 0) {
+			throw new Exception("未发现已启动的考试服务器");
+		}
+		
+		//检查考试服务器是否正常
+		this.examServerService.testExamServerList(examServerList);
+
+		//给考试服务器发送启动请求
+		for (ExamServer examServer : examServerList) {
+			
+			//发送请求
+			try {
+				String url = examServer.getDirectUrl() + "/EsExam/destroyExam.action";
+				ActionPostUtility.post(url)
+					.setParameter("esExamKey", exam.getEsExamKey())
+					.exec();
+			} catch (Exception ex) {
+				throw new Exception("清除【" + examServer.getName() + "】考试服务器异常！ " + ex.getMessage());
+			}
+		}
+
+		//修改考试状态及其他参数
+		exam.setStatus(ExamStatusEnum.Destroyed.toValue());
+		this.daoFacade.getExamDAO().update(exam);
+	}
+}
